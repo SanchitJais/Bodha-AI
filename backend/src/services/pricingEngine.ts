@@ -6,9 +6,10 @@
  * returns a ranked recommendation. That makes it directly unit-testable (see
  * `src/tests/pricingEngine.test.ts`).
  *
- * The single most important guarantee: a recommended price is NEVER below
- * `manufacturingCost + platform fees + shipping`. See `calculateBreakEvenPrice`
- * and the clamp inside `analyzePlatform`.
+ * The single most important guarantee: a recommended price is NEVER below the
+ * true zero-profit floor - manufacturing cost and shipping, both grossed up
+ * for the platform's commission. See `calculateBreakEvenPrice` and the clamp
+ * inside `analyzePlatform`; `estimatedProfit` at that exact floor is always 0.
  */
 
 import { getMarketSnapshot, PLATFORMS } from '../data/mockMarketplaceData.js';
@@ -100,21 +101,17 @@ export function normalizeProfit(estimatedProfit: number, recommendedPrice: numbe
 /**
  * The loss-prevention floor.
  *
- * The marketplace commission is charged on the SALE price, not on cost, so the
- * cost must be grossed up by `1 - feePercent` before shipping is added.
+ * The marketplace commission is charged on the SALE price, not on cost, so
+ * BOTH manufacturing cost and shipping must be grossed up by `1 - feePercent`
+ * together - shipping is a real out-of-pocket cost the seller fronts just like
+ * manufacturing, and commission bites its share too.
  *
- * GUARANTEE: at this price the seller always recovers manufacturing cost plus
- * the marketplace commission in full. Concretely, for cost 400 / fee 18% /
- * shipping 60 the floor is 547.80, of which 98.60 is commission, leaving
- * 449.20 - comfortably above the 400 unit cost.
- *
- * KNOWN RESIDUAL: because the flat shipping fee is added *after* the gross-up
- * rather than being grossed up itself, this floor leaves the shipping fee's own
- * share of commission uncovered - exactly `feePercent * avgShippingFee`
- * (10.80 in the example above). The formula is specified this way, and the
- * product guarantee it backs is "cost + platform fees", which it meets. A floor
- * that also grossed shipping up would be `(cost + shipping) / (1 - fee)`.
- * `zeroProfitPrice()` below exposes that stricter figure for reference.
+ * GUARANTEE: selling at exactly this price yields exactly zero profit - not a
+ * near-zero residual. Concretely, for cost 400 / fee 18% / shipping 60, the
+ * floor is (400 + 60) / (1 - 0.18) = 560.98, of which 100.98 is commission,
+ * leaving exactly 460.00 to cover the 400 cost and 60 shipping. Any price at
+ * or above this floor is provably non-loss-making; `calculateEstimatedProfit`
+ * at this exact price always evaluates to 0.
  */
 export function calculateBreakEvenPrice(
   manufacturingCost: number,
@@ -124,18 +121,6 @@ export function calculateBreakEvenPrice(
   if (feePercent >= 1) {
     throw new Error('feePercent must be below 1 (100%)');
   }
-  return manufacturingCost / (1 - feePercent) + avgShippingFee;
-}
-
-/**
- * The strictly-zero-profit price, where shipping is grossed up alongside cost.
- * Reported for transparency; the recommendation floor is `calculateBreakEvenPrice`.
- */
-export function zeroProfitPrice(
-  manufacturingCost: number,
-  feePercent: number,
-  avgShippingFee: number,
-): number {
   return (manufacturingCost + avgShippingFee) / (1 - feePercent);
 }
 

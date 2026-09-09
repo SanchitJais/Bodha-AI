@@ -48,8 +48,7 @@ export const env = {
     .map((origin) => origin.trim())
     .filter(Boolean),
   databasePath:
-    process.env.DATABASE_PATH ??
-    (process.env.VERCEL ? '/tmp/bodha.db' : './data/bodha.db'),
+    process.env.DATABASE_PATH ?? (process.env.VERCEL ? '/tmp/bodha.db' : './data/bodha.db'),
   /** Empty in the demo - the rule-based listing optimizer is used instead. */
   llmApiKey: process.env.LLM_API_KEY ?? '',
   llmModel: process.env.LLM_MODEL ?? 'claude-sonnet-5',

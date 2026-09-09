@@ -20,10 +20,7 @@ export function createApp(): express.Express {
   app.use(express.json({ limit: '8mb' }));
   app.use(
     cors({
-      origin:
-        env.corsOrigins.includes('*') || Boolean(process.env.VERCEL)
-          ? true
-          : env.corsOrigins,
+      origin: env.corsOrigins.includes('*') || Boolean(process.env.VERCEL) ? true : env.corsOrigins,
     }),
   );
 

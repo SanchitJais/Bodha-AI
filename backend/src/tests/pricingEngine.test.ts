@@ -22,7 +22,6 @@ import {
   normalizeProfit,
   resolvePriceAction,
   toIndexLevel,
-  zeroProfitPrice,
 } from '../services/pricingEngine.js';
 import type { PricingInput } from '../types/index.js';
 
@@ -55,8 +54,8 @@ describe('Section 2.4 - required worked examples', () => {
     expect(amazon.lossRiskAvoided).toBe(false);
     expect(amazon.recommendedPrice).toBeGreaterThan(amazon.breakEvenPrice);
 
-    // Break-even: 400 / (1 - 0.18) + 60 = 547.80
-    expect(amazon.breakEvenPrice).toBeCloseTo(547.8, 1);
+    // Break-even: (400 + 60) / (1 - 0.18) = 560.98
+    expect(amazon.breakEvenPrice).toBeCloseTo(560.98, 1);
 
     // Profit: 999 - (999 * 0.18) - 60 - 400 = 359.18
     expect(amazon.estimatedProfit).toBeCloseTo(359.18, 2);
@@ -98,7 +97,7 @@ describe('Section 2.4 - required worked examples', () => {
 
     const amazon = result.platforms.find((platform) => platform.id === 'amazon');
     expect(amazon?.recommendedPrice).toBe(ELECTRONICS_AMAZON_MEDIAN);
-    expect(amazon?.breakEvenPrice).toBeCloseTo(547.8, 1);
+    expect(amazon?.breakEvenPrice).toBeCloseTo(560.98, 1);
   });
 
   it('case 3: never recommends below break-even when the market price is too low', () => {
@@ -128,17 +127,16 @@ describe('Section 2.4 - required worked examples', () => {
     expect(alibaba.recommendedPrice).toBeCloseTo(expectedBreakEven, 2);
     expect(alibaba.lossRiskAvoided).toBe(true);
 
-    // At the floor the seller recovers manufacturing cost AND the commission
-    // charged on it - this is the guarantee the product makes.
-    const commission = alibaba.recommendedPrice * PLATFORMS.alibaba.feePercent;
-    expect(alibaba.recommendedPrice - commission).toBeGreaterThanOrEqual(900);
+    // At the floor the seller recovers manufacturing cost AND shipping, in
+    // full, after commission - this is the guarantee the product makes.
+    const netOfCommission = alibaba.recommendedPrice * (1 - PLATFORMS.alibaba.feePercent);
+    expect(netOfCommission).toBeCloseTo(900 + PLATFORMS.alibaba.avgShippingFee, 2);
 
-    // The only uncovered amount is the commission charged on the flat shipping
-    // fee, which the specified floor formula does not gross up. See the
-    // "KNOWN RESIDUAL" note on calculateBreakEvenPrice.
-    const residual = -PLATFORMS.alibaba.feePercent * PLATFORMS.alibaba.avgShippingFee;
-    expect(alibaba.estimatedProfit).toBeCloseTo(residual, 2);
-    expect(Math.abs(alibaba.estimatedProfit)).toBeLessThan(2);
+    // Selling at exactly the floor is exactly break-even - zero profit, not a
+    // near-zero residual. That is what "break-even" means. (The response field
+    // is rounded to 2dp, so assert against that same precision.)
+    expect(alibaba.estimatedProfit).toBeCloseTo(0, 2);
+    expect(alibaba.profitMargin).toBeCloseTo(0, 2);
 
     expect(alibaba.explanation).toMatch(/refused to suggest a loss-making price/i);
   });
@@ -166,10 +164,14 @@ describe('loss prevention holds across every category and platform', () => {
             recommendation.breakEvenPrice - 0.01,
           );
 
-          // The headline guarantee: manufacturing cost plus the marketplace
-          // commission is always recovered, on every category x platform pair.
+          // The headline guarantee: manufacturing cost AND shipping are always
+          // recovered after commission, on every category x platform pair -
+          // so estimated profit is never negative.
           const netOfCommission = recommendation.recommendedPrice * (1 - recommendation.feePercent);
-          expect(netOfCommission).toBeGreaterThanOrEqual(manufacturingCost - 0.01);
+          expect(netOfCommission).toBeGreaterThanOrEqual(
+            manufacturingCost + recommendation.avgShippingFee - 0.01,
+          );
+          expect(recommendation.estimatedProfit).toBeGreaterThanOrEqual(-0.01);
         }
       }
     }
@@ -183,9 +185,9 @@ describe('formula helpers', () => {
     expect(() => median([])).toThrow(/at least one value/);
   });
 
-  it('grosses the manufacturing cost up by the commission, then adds shipping', () => {
-    // 400 / (1 - 0.18) + 60
-    expect(calculateBreakEvenPrice(400, 0.18, 60)).toBeCloseTo(547.8, 1);
+  it('grosses cost AND shipping up together by the commission', () => {
+    // (400 + 60) / (1 - 0.18)
+    expect(calculateBreakEvenPrice(400, 0.18, 60)).toBeCloseTo(560.98, 1);
     // A zero-fee, zero-shipping marketplace breaks even at cost.
     expect(calculateBreakEvenPrice(400, 0, 0)).toBe(400);
     expect(() => calculateBreakEvenPrice(400, 1, 0)).toThrow(/below 1/);
@@ -194,15 +196,10 @@ describe('formula helpers', () => {
   it('computes profit net of commission, shipping and cost', () => {
     expect(calculateEstimatedProfit(1000, 400, 0.2, 50)).toBeCloseTo(350, 5);
 
-    // At the specified floor, profit is short by exactly the commission charged
-    // on the flat shipping fee (0.18 * 60 = 10.80). Documented, not accidental.
+    // Selling at exactly the break-even floor is exactly zero profit - the
+    // floor and the profit formula agree by construction, with no residual.
     const breakEven = calculateBreakEvenPrice(400, 0.18, 60);
-    expect(calculateEstimatedProfit(breakEven, 400, 0.18, 60)).toBeCloseTo(-10.8, 6);
-
-    // Grossing shipping up too gives the strictly-zero-profit price.
-    const zeroProfit = zeroProfitPrice(400, 0.18, 60);
-    expect(calculateEstimatedProfit(zeroProfit, 400, 0.18, 60)).toBeCloseTo(0, 6);
-    expect(zeroProfit).toBeGreaterThan(breakEven);
+    expect(calculateEstimatedProfit(breakEven, 400, 0.18, 60)).toBeCloseTo(0, 6);
   });
 
   it('weights fit score 40/30/30 across profit, competition and demand', () => {

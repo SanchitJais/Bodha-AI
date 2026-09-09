@@ -95,7 +95,7 @@ For each selected marketplace:
 | Step | Formula |
 |---|---|
 | Market price | `median(comparable listing prices)` for that category × platform |
-| **Break-even floor** | `manufacturingCost / (1 - feePercent) + avgShippingFee` |
+| **Break-even floor** | `(manufacturingCost + avgShippingFee) / (1 - feePercent)` |
 | Recommended price | `max(marketPrice, breakEvenPrice)` — clamped, never below the floor |
 | Estimated profit | `price - price × feePercent - avgShippingFee - manufacturingCost` |
 | Fit score (0–100) | `0.4 × normalize(profit) + 0.3 × (100 - competition) + 0.3 × demand` |
@@ -117,14 +117,14 @@ does not follow the market down. It floors the recommendation at break-even, set
 `lossRiskAvoided: true`, and says so in the UI with a "Loss protection applied"
 notice explaining why.
 
-> **A note on the break-even formula.** As specified, the flat shipping fee is added
-> *after* the cost is grossed up for commission, rather than being grossed up itself.
-> At exactly the floor this leaves `feePercent × avgShippingFee` uncovered (₹10.80 on
-> Amazon at a ₹60 shipping fee). The guarantee this floor backs — *manufacturing cost
-> plus platform fees is always recovered* — holds in full, and the residual is
-> asserted explicitly in the tests. `zeroProfitPrice()` exposes the stricter
-> `(cost + shipping) / (1 - fee)` figure for reference. See the `KNOWN RESIDUAL` note
-> on `calculateBreakEvenPrice`.
+> **Why shipping is grossed up too.** Shipping is a real out-of-pocket cost the
+> seller fronts, same as manufacturing — so it is grossed up by the commission
+> alongside cost, not added on afterward. That makes the floor a *true*
+> zero-profit price: selling at exactly `breakEvenPrice` always yields exactly
+> `estimatedProfit === 0` (asserted directly in the tests), not a small residual
+> loss. For cost ₹400 / Amazon's 18% fee / ₹60 shipping, the floor is
+> `(400 + 60) / (1 - 0.18) = ₹560.98` — of which ₹100.98 is commission, leaving
+> exactly ₹460 to cover the ₹400 cost and ₹60 shipping.
 
 ---
 
@@ -193,7 +193,7 @@ Base URL `http://localhost:4000`. All errors return
   "platforms": [
     {
       "name": "Amazon", "feePercent": 0.18, "marketPriceRange": [899, 1199],
-      "recommendedPrice": 999, "breakEvenPrice": 547.8,
+      "recommendedPrice": 999, "breakEvenPrice": 560.98,
       "estimatedProfit": 359.18, "profitMargin": 0.3595,
       "competition": "High", "demand": "High", "fitScore": 74.8,
       "priceAction": "increase", "explanation": "Similar products on Amazon sell…",
@@ -231,12 +231,12 @@ The three cases required by the brief are grouped under
 `Section 2.4 - required worked examples`:
 
 1. **Increase** — cost ₹400, listed at ₹800, market ≈ ₹1000 → recommends **₹999**
-   with `priceAction: "increase"`, break-even ₹547.80, profit ₹359.18, and an
+   with `priceAction: "increase"`, break-even ₹560.98, profit ₹359.18, and an
    explanation citing high demand and competitors pricing higher.
 2. **Decrease** — cost ₹400, listed at ₹1400 → `"decrease"`, with the final price
    still more than 1.5× the break-even floor.
 3. **Loss prevention** — cost ₹900 on Toys/Alibaba, where the ₹300 market median is
-   far below the ₹967.41 floor → `recommendedPrice === breakEvenPrice` and
+   far below the ₹968.59 floor → `recommendedPrice === breakEvenPrice` and
    `lossRiskAvoided === true`.
 
 Plus an exhaustive sweep asserting that across **every** category × platform × cost
@@ -262,8 +262,8 @@ A scripted Playwright walkthrough drives a real Chrome through the whole product
 | Mobile (390×844) | [`10-mobile-home.png`](docs/screenshots/10-mobile-home.png), [`11-mobile-report.png`](docs/screenshots/11-mobile-report.png) |
 
 The walkthrough asserts the real numbers on the rendered page (₹999 recommendation,
-₹547.80 break-even, ₹359.18 profit, 18.0% / 4.5% fees), that history persists and
-reopens correctly, that loss protection fires and floors the price at ₹967.41, and
+₹560.98 break-even, ₹359.18 profit, 18.0% / 4.5% fees), that history persists and
+reopens correctly, that loss protection fires and floors the price at ₹968.59, and
 that neither the home page nor the report scrolls horizontally on a phone.
 
 ---
