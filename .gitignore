@@ -4,3 +4,4 @@ dist
 backend/data
 *.log
 docs/verification.html
+docs/screenshots/*.png

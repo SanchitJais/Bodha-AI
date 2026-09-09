@@ -6,7 +6,11 @@ Bodha AI answers three questions about a product in one pass — **where** to se
 **what** to charge, and **how** to write the listing — and it will never recommend a
 price that loses the seller money.
 
-![Recommendation report](docs/screenshots/04-report-full.png)
+📋 **[View the build verification](https://claude.ai/code/artifact/c8dc92a7-b77c-487c-a0b7-d4493ea2f38d)**
+— every screen as it renders, the three required pricing cases, and the full test
+and browser-walkthrough results (screenshots aren't committed to the repo to keep
+it lean; see [`docs/screenshots/`](docs/screenshots/) locally after running the
+walkthrough yourself).
 
 ---
 
@@ -248,18 +252,15 @@ the response shape, validation failures, the 404 path, and persistence round-tri
 ## Verified in the browser
 
 A scripted Playwright walkthrough drives a real Chrome through the whole product —
-**35/35 checks pass**, with zero console errors. Screenshots in
-[`docs/screenshots/`](docs/screenshots):
+**36/36 checks pass**, with zero console errors, covering the landing page, form
+validation, the recommendation report, dashboard/history, the loss-protection path,
+and mobile layout at 390×844. Full screenshot gallery and results:
+**[build verification](https://claude.ai/code/artifact/c8dc92a7-b77c-487c-a0b7-d4493ea2f38d)**.
 
-| Screen | |
-|---|---|
-| Landing page | [`01-home.png`](docs/screenshots/01-home.png) |
-| Form validation | [`02-analyze-validation.png`](docs/screenshots/02-analyze-validation.png) |
-| Analyze form, filled | [`03-analyze-filled.png`](docs/screenshots/03-analyze-filled.png) |
-| **Recommendation report** | [`04-report-full.png`](docs/screenshots/04-report-full.png) |
-| Dashboard / history | [`07-dashboard.png`](docs/screenshots/07-dashboard.png) |
-| Loss protection | [`09-report-loss-protection.png`](docs/screenshots/09-report-loss-protection.png) |
-| Mobile (390×844) | [`10-mobile-home.png`](docs/screenshots/10-mobile-home.png), [`11-mobile-report.png`](docs/screenshots/11-mobile-report.png) |
+Screenshots aren't committed to keep the repo lean; regenerate them yourself with
+the app running by pointing a Playwright script at `localhost:5173` (see the
+walkthrough steps in the verification report above), or find them at
+`docs/screenshots/` after doing so.
 
 The walkthrough asserts the real numbers on the rendered page (₹999 recommendation,
 ₹560.98 break-even, ₹359.18 profit, 18.0% / 4.5% fees), that history persists and
