@@ -6,18 +6,24 @@ import { closeDatabase, getDatabase } from './models/db.js';
 
 getDatabase();
 
-const server = createApp().listen(env.port, () => {
-  console.log('[bodha-ai] API listening on http://localhost:' + env.port);
-  console.log('[bodha-ai] allowed origins: ' + env.corsOrigins.join(', '));
-});
+const app = createApp();
 
-function shutdown(signal: string): void {
-  console.log('[bodha-ai] ' + signal + ' received, shutting down');
-  server.close(() => {
-    closeDatabase();
-    process.exit(0);
+if (!process.env.VERCEL) {
+  const server = app.listen(env.port, () => {
+    console.log('[bodha-ai] API listening on http://localhost:' + env.port);
+    console.log('[bodha-ai] allowed origins: ' + env.corsOrigins.join(', '));
   });
+
+  const shutdown = (signal: string): void => {
+    console.log('[bodha-ai] ' + signal + ' received, shutting down');
+    server.close(() => {
+      closeDatabase();
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
-process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));
+export default app;
