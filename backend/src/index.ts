@@ -2,9 +2,8 @@
 
 import { createApp } from './app.js';
 import { env } from './config/env.js';
-import { closeDatabase, getDatabase } from './models/db.js';
+import { closeDatabase } from './models/db.js';
 
-getDatabase();
 
 const app = createApp();
 
