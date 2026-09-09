@@ -18,7 +18,14 @@ export function createApp(): express.Express {
 
   // Product images arrive as downscaled data URLs, so allow a generous body.
   app.use(express.json({ limit: '8mb' }));
-  app.use(cors({ origin: env.corsOrigins }));
+  app.use(
+    cors({
+      origin:
+        env.corsOrigins.includes('*') || Boolean(process.env.VERCEL)
+          ? true
+          : env.corsOrigins,
+    }),
+  );
 
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({

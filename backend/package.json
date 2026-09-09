@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Bodha AI — marketplace recommendation REST API",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
