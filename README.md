@@ -1,29 +1,211 @@
 # Bodha AI
 
-**AI-powered marketplace recommendation engine for e-commerce sellers.**
+**An AI-powered marketplace recommendation engine for Indian e-commerce sellers.**
 
-Bodha AI answers three questions about a product in one pass — **where** to sell it,
-**what** to charge, and **how** to write the listing — and it will never recommend a
-price that loses the seller money.
-
-![Recommendation report]
+> Team **Code4Bharat** — Sanchit Jaiswal · Krishna Keshab · Chiraag Mutupuri · Sagnik Mitra · Sanjay Gupta
 
 ---
 
-## Quick start
+## 1. Problem statement
+
+A small Indian seller with a product to list faces three decisions at once, and gets
+no help with any of them:
+
+1. **Where should I sell it?** Amazon, Flipkart, Snapdeal and Alibaba have very
+   different commissions, buyer demand and competitive density. Picking wrong means
+   thin margins or no sales.
+2. **What price should I set?** Sellers routinely copy the going rate off a search
+   page without checking whether that price even covers their manufacturing cost
+   plus the marketplace's commission, GST on that commission, and shipping. The
+   result is listings that lose money on every unit sold.
+3. **How do I write the listing?** A weak title and missing keywords bury a product
+   in search, no matter how good it is.
+
+These questions need live market data, a margin-safe pricing calculation, and
+copywriting help — and today a seller answers them by guesswork.
+
+## 2. Solution overview
+
+Bodha AI answers all three questions in a single pass and **never recommends a price
+that loses the seller money.**
+
+Given a product (title, description, category, image, manufacturing cost, current
+price, and the marketplaces to consider), Bodha AI:
+
+- **Reads the live market.** Playwright scrapes Amazon.in, Flipkart and Snapdeal
+  search results at query time for comparable listings, prices, ratings and review
+  counts. Results are cached for a few hours; if a scrape is blocked it falls back
+  to the last snapshot.
+- **Computes a margin-safe price per marketplace.** A pure pricing engine derives a
+  **break-even floor** from cost + effective commission (published rate + 18% GST on
+  it) + shipping, then recommends `max(market price, break-even)` — clamped so the
+  recommendation is *never* below the floor. When comparable products sell below
+  what the seller can afford, it says so instead of following the market down.
+- **Ranks the marketplaces** by a 0–100 fit score blending normalised profit,
+  competition and demand, and names the best one.
+- **Rewrites the listing** into an SEO-shaped title, a scannable description and 3–5
+  keywords — via Google Gemini when a key is configured, deterministic templates
+  otherwise.
+- **Adds context:** competitor cards with strengths/weaknesses, buyer review themes
+  (praises vs complaints), and region-by-region demand from Google Trends.
+- **Explains every number** in plain English (English, Hindi or Tamil), citing the
+  evidence behind it.
+
+It ships as a responsive web app, a packaged **Android app**, and a **multilingual
+voice assistant** so a seller can simply ask "where should I sell this and for how
+much?".
+
+---
+
+## 3. Technologies & tools
+
+| Layer | Stack |
+|---|---|
+| **Frontend** | React 18, Vite 6, TypeScript, Tailwind CSS 3, React Router 6, TanStack React Query 5, Recharts, i18next (English / हिंदी / தமிழ்) |
+| **Mobile** | Capacitor 7 (Android WebView wrapper) — Camera, Filesystem, Preferences, Push Notifications, Share, Speech Recognition plugins |
+| **Backend** | Node.js 22.5+, Express 5, TypeScript, Zod (validation) |
+| **Market data** | Playwright (headless Chromium scrapers for Amazon / Flipkart / Snapdeal), one-at-a-time per-host queue, `robots.txt` + bot-check aware |
+| **Persistence** | `node:sqlite` (Node's built-in driver — no native build step); optional MongoDB mirror via Mongoose |
+| **AI** | Google Gemini (`generativelanguage` REST API) — listing copy, voice answers, photo-to-listing vision, review-theme summarisation |
+| **Voice** | ElevenLabs Conversational AI agent, with an on-site Gemini/text fallback |
+| **External services** | Google Trends (regional demand), Google Identity Services ("Sign in with Google"), Razorpay test checkout (Pro plan) |
+| **Reporting** | Server-rendered PDF export of any analysis |
+| **Quality** | Vitest (≈110 backend + ≈23 frontend tests), ESLint, Prettier, GitHub Actions CI |
+| **Deployment** | Backend on Render; web client configured for Vercel |
+
+---
+
+## 4. Architecture
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        CLIENT  ·  Web SPA + Android app                    │
+│   React + Vite + Tailwind   ·   Capacitor WebView   ·   i18n (en / hi / ta)│
+│   Home → Sign up / Onboarding → Analyze form → Report dashboard → History  │
+│   Voice assistant (ElevenLabs, floating)                                   │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │  REST / JSON   (HttpOnly session cookie)
+                                   ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                BACKEND  ·  Node + Express + TypeScript                     │
+│                                                                           │
+│  routes/    auth · billing · products · voice · voice-tools               │
+│                 │                                                         │
+│                 ▼                                                         │
+│  analysisService  — orchestration (IDs, clock, persistence, scraping)     │
+│     ├─ marketplaceDataProvider ──► Playwright scrapers ──► Amazon         │
+│     │      cache-first, TTL 3h          (queue + bot-check)   Flipkart    │
+│     │                                                        Snapdeal     │
+│     ├─ pricingEngine          (PURE)   where to sell · what to charge     │
+│     ├─ listingOptimizer       (PURE + Gemini)   how to write the listing  │
+│     ├─ competitorAnalysis / reviewSentiment   (scrape + Gemini)          │
+│     └─ regionalDemandService  ──► Google Trends (interest by state)       │
+│                                                                           │
+│  models/    SQLite (node:sqlite, zero native build)  +  MongoDB (optional)│
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │
+         ┌─────────────────────────┼──────────────────────────┐
+         ▼                         ▼                          ▼
+   ElevenLabs                Google Gemini              Razorpay (test)
+   Conversational AI       listing · voice ·            Pro subscription
+   (voice assistant)       vision · review themes       ($10 / mo → ₹830)
+```
+
+**Design rule:** `pricingEngine` and `listingOptimizer` are **pure functions** — data
+in, data out, no HTTP / DB / clock / UI. Everything impure (IDs, timestamps,
+persistence, Playwright, Gemini) lives in `analysisService`. That is what makes the
+business rules directly unit-testable.
+
+### Workflow — `POST /api/products/analyze`
+
+```
+Analyze form  →  services/api.ts  →  POST /api/products/analyze
+                                          │  auth + free-quota check (6 / month)
+                                          ▼
+                                 zod validation (400 on failure)
+                                          ▼
+                    marketplaceDataProvider.getMarketData()
+                        fresh cache (< 3h)      → use it            (freshness: cached)
+                        else Playwright scrape  → Amazon/Flipkart/Snapdeal (live)
+                        scrape fails            → stale cache, else "unavailable"
+                                          ▼
+                    pricingEngine.analyzePricing(snapshots)          ← PURE
+                        break-even floor · fit score · ranking · price advice
+                                          ▼
+                    listingOptimizer.optimizeListing()               ← Gemini or templates
+                                          ▼
+                    competitor cards + review themes + regional demand
+                                          ▼
+                    saveAnalysis()  →  SQLite   (+ MongoDB mirror if configured)
+                                          ▼
+              201 + full report  →  React Query cache  →  /report/:productId
+```
+
+### Repository layout
+
+```
+bodha-ai/
+├── backend/                     Node + Express + TypeScript REST API
+│   └── src/
+│       ├── routes/              HTTP layer — auth, billing, products, voice, voice-tools
+│       ├── services/
+│       │   ├── pricingEngine.ts            pure business logic, unit tested
+│       │   ├── listingOptimizer.ts         pure + Gemini listing rewriter
+│       │   ├── marketplaceDataProvider.ts  cache-first, then Playwright scrape
+│       │   ├── analysisService.ts          orchestration (IDs, clock, persistence)
+│       │   ├── competitorAnalysis.ts       competitor strengths / weaknesses
+│       │   ├── reviewSentiment.ts          review-page scrape + theme summary
+│       │   ├── regionalDemandService.ts    Google Trends interest-by-state
+│       │   ├── geminiService.ts            Gemini REST client (text + vision)
+│       │   ├── voiceService.ts             on-site voice fallback
+│       │   ├── pdfReport.ts                server-rendered PDF export
+│       │   └── scraper/                    Amazon / Flipkart / Snapdeal adapters, queue, anti-bot
+│       ├── models/              SQLite schema + repositories, optional Mongoose mirror
+│       ├── middleware/auth.ts   session cookie / bearer token
+│       ├── data/                platformConfig.ts (fees) + categories.ts
+│       ├── config/env.ts        single source of truth for env vars
+│       └── tests/               Vitest suites (live-scrape tests skipped by default)
+├── frontend/                    React + Vite + TypeScript + Tailwind
+│   └── src/
+│       ├── pages/               Home, Login, Signup, Onboarding, Analyze, Report, Dashboard, Pricing
+│       ├── components/          layout/, analyze/, report/, auth/, voice/, ui/
+│       ├── hooks/               React Query bindings + form state + auth
+│       ├── i18n/                en / hi / ta locale bundles
+│       └── services/api.ts      the ONLY place that calls fetch
+├── native/                      Capacitor plugin adapters (imported as @native/* by the web app)
+├── android/                     generated native Android project
+├── capacitor.config.ts          wraps frontend/dist as the Android app
+└── .github/workflows/ci.yml     lint · format · typecheck · test · build (both packages)
+```
+
+---
+
+## 5. Setup & run
+
+### Prerequisites
+
+- **Node.js 22.5 or newer** — the API uses the built-in `node:sqlite` module, so
+  there is no native build step. Developed and verified on Node 26.
+- For the Android build only: Android Studio + JDK 17.
+
+### Local development
 
 ```bash
-# 1. Install both packages
+# 1. Install dependencies for the root, backend and frontend packages
 npm run install:all
+
+# 2. Install the Chromium build the live scrapers use
 npx --prefix backend playwright install chromium
 
-# 2. Copy the env templates (defaults work as-is for local development)
-
-# 2. Copy the env templates (defaults work as-is for local development)
-cp backend/.env.example backend/.env
+# 3. Create env files from the templates (defaults work as-is for local dev)
+cp backend/.env.example  backend/.env
 cp frontend/.env.example frontend/.env
 
-# 3. Run the API (:4000) and the web app (:5173) together
+# 4. (optional) seed a demo account with 5 sample analyses
+npm --prefix backend run seed:demo
+#    → login: bodhaai.test@gmail.com / qwerty123
+
+# 5. Run the API (:4000) and the web app (:5173) together
 npm run dev
 ```
 
@@ -31,77 +213,50 @@ Then open **http://localhost:5173**.
 
 Prefer two terminals? `npm run dev:backend` and `npm run dev:frontend`.
 
+### Optional configuration
+
+**The app runs fully without any API keys** — Gemini falls back to templates, voice
+falls back to on-site text, billing uses a mock checkout, and data is stored in
+local SQLite. Set any of these in `backend/.env` to switch on the real integration:
+
+| Env var | Enables |
+|---|---|
+| `GEMINI_API_KEY` | Gemini-written listing copy, voice answers, photo-to-listing, review themes |
+| `ELEVENLABS_API_KEY` | ElevenLabs voice assistant (the agent ID is already set; do not create a new one) |
+| `MONGODB_URI` | Mirror every write to MongoDB Atlas / local Mongo alongside SQLite |
+| `GOOGLE_CLIENT_ID` | "Sign in with Google" button (email + password always works) — same value in `frontend/.env` as `VITE_GOOGLE_CLIENT_ID` |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Real Razorpay **test-mode** checkout for the Pro plan |
+
+### Android app
+
+A prebuilt **`Bodha-AI.apk`** sits at the repository root. To rebuild it:
+
+```bash
+npm run android:build   # vite build (--mode android) + cap sync
+npm run android:open     # open the project in Android Studio
+npm run android:run      # build and run on a connected device / emulator
+```
+
+The packaged app has no dev proxy, so it reads the deployed API URL from
+`frontend/.env.android`.
+
+### All scripts
+
 | Command | What it does |
 |---|---|
-| `npm run dev` | Runs API + web app together |
-| `npm test` | Runs the backend unit + API test suites (live scrapes skipped) |
+| `npm run dev` | API + web app together |
+| `npm run dev:backend` / `npm run dev:frontend` | one package at a time |
+| `npm test` | backend unit + API suites (live scrapes skipped) |
 | `npm run lint` | ESLint across both packages |
 | `npm run format:check` | Prettier check across both packages |
-| `npm run build` | Type-checks and builds both packages for production |
-
-**Requirements:** Node.js 22.5+ (the API uses the built-in `node:sqlite` module, so
-there is no native build step). Developed and verified on Node 26.
-
----
-
-## Architecture
-
-```
-bodha-ai/
-├── backend/                     Node + Express + TypeScript REST API
-│   └── src/
-│       ├── routes/              HTTP layer only
-│       ├── services/
-│       │   ├── pricingEngine.ts            pure business logic, unit tested
-│       │   ├── listingOptimizer.ts         pure listing rewriter, unit tested
-│       │   ├── snapshotFromListings.ts     demand/competition heuristics
-│       │   ├── marketplaceDataProvider.ts  cache-first then Playwright scrape
-│       │   ├── cacheService.ts             SQLite listing cache
-│       │   ├── analysisService.ts          IDs, clock, persistence
-│       │   └── scraper/                    Amazon / Flipkart / Snapdeal adapters
-│       ├── models/              SQLite schema + repository (all SQL lives here)
-│       ├── data/                platformConfig.ts (fees) + categories.ts
-│       ├── utils/               zod validation + structured HTTP errors
-│       └── tests/               Vitest suites (live scrape tests skipped by default)
-└── frontend/                    React + Vite + TypeScript + Tailwind
-    └── src/
-        ├── pages/               Home, Analyze, Report, Dashboard, NotFound
-        ├── components/          layout/, analyze/, report/, ui/
-        ├── hooks/               React Query bindings + form state
-        ├── services/api.ts      the ONLY place that calls fetch
-        └── types/               response-facing types
-```
-
-The design rule throughout: **`pricingEngine` and `listingOptimizer` are pure
-functions.** They take data and return data — no HTTP, no database, no clock, no
-UI. Comparable listings come from `marketplaceDataProvider` (live scrape or
-cache). Everything impure (IDs, timestamps, persistence, Playwright) stays out
-of the pricing engine. That is what makes the business rules unit-testable.
-
-### Request flow
-
-```
-Analyze form → services/api.ts → POST /api/products/analyze
-                                      ↓
-                             zod validation (400 on failure)
-                                      ↓
-              marketplaceDataProvider.getMarketSnapshots()
-                 cache HIT → cached listings
-                 else Playwright scrape (Amazon / Flipkart / Snapdeal)
-                 scrape fail → stale cache, or "unavailable"
-                                      ↓
-                    pricingEngine.analyzePricing(snapshots)  ← pure
-                                      ↓
-                    listingOptimizer.optimizeListing()  ← pure
-                                      ↓
-                         saveAnalysis() → SQLite
-                                      ↓
-                    201 + full report → React Query cache → /report/:id
-```
+| `npm run build` | type-check and production-build both packages |
+| `npm run android:build` / `:open` / `:run` | Capacitor Android tasks |
+| `npm --prefix backend run seed:demo` | seed the demo account + 5 analyses |
+| `npm --prefix backend run test:live-scrape` | run the real scraper tests (`LIVE_SCRAPE=1`) |
 
 ---
 
-## The pricing logic
+## 6. The pricing logic
 
 For each selected marketplace:
 
@@ -109,111 +264,60 @@ For each selected marketplace:
 |---|---|
 | Market price | `median(comparable listing prices)` for that category × platform |
 | Effective commission | `feePercent × (1 + 0.18)` — marketplaces charge 18% GST on their own commission, deducted from the seller's settlement alongside it |
-| **Break-even floor** | `manufacturingCost / (1 - effectiveFeePercent) + avgShippingFee` |
+| **Break-even floor** | `manufacturingCost / (1 − effectiveFeePercent) + avgShippingFee` |
 | Recommended price | `max(marketPrice, breakEvenPrice)` — clamped, never below the floor |
-| Estimated profit | `price - price × effectiveFeePercent - avgShippingFee - manufacturingCost` |
-| Fit score (0–100) | `0.4 × normalize(profit) + 0.3 × (100 - competition) + 0.3 × demand` |
+| Estimated profit | `price − price × effectiveFeePercent − avgShippingFee − manufacturingCost` |
+| Fit score (0–100) | `0.4 × normalize(profit) + 0.3 × (100 − competition) + 0.3 × demand` |
 
 Platforms are ranked by fit score; the top one becomes the **Recommended
-Marketplace**. The weights, the 35% target margin used to normalise profit, the
-18% GST rate on commission, and the ±10% re-pricing dead-band are all exported
-constants in [`pricingEngine.ts`](backend/src/services/pricingEngine.ts) so they
-are easy to tune. `feePercent` in the marketplace config is still the plain
-published commission rate — it's what the UI shows as "Amazon's commission" —
-while GST is layered on top only inside the profit/break-even math, matching how
-sellers actually see it deducted in their settlement report.
+Marketplace**. The weights, the 35% target margin used to normalise profit, the 18%
+GST rate, and the ±10% re-pricing dead-band are all exported constants in
+[`pricingEngine.ts`](backend/src/services/pricingEngine.ts).
 
-**Price advice** compares the seller's current price to the recommendation:
-below 90% → `increase`, above 110% → `decrease`, otherwise `hold`. Every
-recommendation ships with a plain-English explanation citing the evidence behind
-it — comparable listings, demand, competition, or the break-even floor.
+**Price advice** compares the seller's current price to the recommendation: below 90%
+→ `increase`, above 110% → `decrease`, otherwise `hold`.
 
 ### The loss-prevention guarantee
 
 If comparable products sell *below* what the seller can afford to charge, Bodha AI
 does not follow the market down. It floors the recommendation at break-even, sets
-`lossRiskAvoided: true`, and says so in the UI with a "Loss protection applied"
-notice explaining why.
+`lossRiskAvoided: true`, and shows a "Loss protection applied" notice explaining why.
 
-> **A note on the break-even formula.** As specified, the flat shipping fee is added
-> *after* the cost is grossed up for commission (+ GST), rather than being grossed up
-> itself. At exactly the floor this leaves `effectiveFeePercent × avgShippingFee`
-> uncovered (₹12.74 on Amazon at a ₹60 shipping fee, since 18% commission plus 18%
-> GST on that commission is a 21.24% effective rate). The guarantee this floor backs —
-> *manufacturing cost plus platform fees is always recovered* — holds in full, and the
-> residual is asserted explicitly in the tests. `zeroProfitPrice()` exposes the
-> stricter `(cost + shipping) / (1 - effectiveFeePercent)` figure for reference. See
-> the `KNOWN RESIDUAL` note on `calculateBreakEvenPrice`.
-
----
-
-## What is mocked vs. real
-
-| Piece | Status |
-|---|---|
-| Marketplace comparable prices, demand, competition | **Live scrape + cache.** Playwright reads Amazon.in, Flipkart and Snapdeal search results at query time. Fresh snapshots are reused for `CACHE_TTL_HOURS` (default 3). If a scrape is blocked or times out, the last cached snapshot is used and the UI shows a "last updated" badge. Alibaba is not scraped (B2B, out of scope) and appears as "Data temporarily unavailable". |
-| Pricing engine | **Real.** Every number in the report is computed from your inputs plus the live/cached listings by the formulas above. |
-| Listing optimizer | **Rule-based stub.** Deterministic templates, not a live LLM — see below. |
-| Persistence | **Real.** SQLite on disk; history and the listing cache survive a server restart. |
-| Authentication | **Mocked.** One fixed `demo-seller` session; login is out of scope. |
-| Payments | Not implemented — out of scope. |
-
-Commission rates sit inside each marketplace's real-world published band (Amazon
-15–20%, Flipkart 12–18%, Snapdeal 8–12%, Alibaba 3–6%). Those fees are commercial
-config, not scraped — search pages do not publish the seller commission.
-
-**demandIndex** and **competitionIndex** are heuristics derived from scraped
-fields, not scores the platforms publish:
+`demandIndex` and `competitionIndex` are heuristics derived from scraped fields, not
+scores the platforms publish:
 
 - `demandIndex = 100 × log10(1 + avg reviewCount) / log10(1 + 10000)`
 - `competitionIndex = 100 × listingCount / 20` (page-1 density, cap 20)
 
-See `backend/src/services/snapshotFromListings.ts`.
-
-### Live scrape behaviour
-
-- One shared headless Chromium; a fresh browser context per request.
-- One-at-a-time queue per marketplace (never concurrent Amazon scrapes).
-- CAPTCHA / bot-check pages are detected and fall back immediately — they are not bypassed.
-- `GET /api/health` reports cache size and TTL. `DELETE /api/cache` clears the listing cache so the next analyze is forced live (useful for demos).
-- Selectors were verified against live search pages on 2026-09-09 (`backend/scripts/probe-marketplaces.mjs`). Re-run that script if a marketplace layout changes.
-- After `npm install`, run `npx playwright install chromium` once.
-
-Live scrape integration tests are skipped in `npm test`. To run them (sparingly):
-
-```bash
-cd backend
-# PowerShell
-$env:LIVE_SCRAPE=1; npm run test:live-scrape
-```
-
-### Swapping the listing optimizer for a real LLM
-
-[`listingOptimizer.ts`](backend/src/services/listingOptimizer.ts) exports a single
-function with the signature a real implementation would have:
-
-```ts
-(input: ListingOptimizerInput) => Promise<OptimizedListing>
-```
-
-Write an `llmOptimizer` with that signature and change the one line marked
-`SWAP POINT`:
-
-```ts
-export const optimizeListing = process.env.LLM_API_KEY ? llmOptimizer : ruleBasedOptimizer;
-```
-
-Nothing else changes — `analysisService` only ever calls `optimizeListing`. Set
-`LLM_API_KEY` in `backend/.env`; `GET /api/health` reports which one is active.
+Commission rates are each marketplace's real-world published band (Amazon 15–20%,
+Flipkart 12–18%, Snapdeal 8–12%, Alibaba 3–6%) — commercial config, not scraped.
+Alibaba is B2B and not scraped; it appears as "Data temporarily unavailable".
 
 ---
 
-## API
+## 7. API
 
-Base URL `http://localhost:4000`. All errors return
-`{ "error": { "code", "message", "details?" } }` with a matching HTTP status.
+Base URL `http://localhost:4000`. Session is an HttpOnly cookie (or `Authorization:
+Bearer <token>`). All errors return `{ "error": { "code", "message", "details?" } }`.
 
-### `POST /api/products/analyze` → `201`
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/auth/signup` · `login` · `logout` · `google` | account + session |
+| `GET /api/auth/me` · `POST /api/auth/onboarding` | current user + store profile |
+| `POST /api/products/analyze` → `201` | run and persist a full analysis |
+| `POST /api/products/insight` | photo → suggested title / description / category |
+| `GET /api/products/history` | newest-first list of this seller's analyses |
+| `GET /api/products/:id` → `200` / `404` | the full stored report (owner only) |
+| `GET /api/products/:id/pdf?lang=en\|hi\|ta` | download the report as a PDF |
+| `GET /api/billing/plan` · `POST /api/billing/order` · `verify` | Pro subscription (Razorpay) |
+| `GET /api/voice/session` · `POST /api/voice/query` | ElevenLabs token + on-site fallback |
+| `GET /api/voice-tools/*` | server-tool webhooks the voice agent calls (shared-secret gated) |
+| `GET /api/health` | status, active listing optimizer, cache size + TTL |
+| `GET /api/meta` | categories + platforms that populate the form controls |
+| `DELETE /api/cache` | drop cached listings so the next analyze is forced live (demo helper) |
+
+<details>
+<summary><code>POST /api/products/analyze</code> — request / response</summary>
 
 ```jsonc
 // request
@@ -224,7 +328,8 @@ Base URL `http://localhost:4000`. All errors return
   "imageUrl": null,                    // or a data: URL
   "manufacturingCost": 400,
   "currentPrice": 800,
-  "platforms": ["amazon", "flipkart", "snapdeal", "alibaba"]
+  "platforms": ["amazon", "flipkart", "snapdeal", "alibaba"],
+  "language": "en"                     // en | hi | ta
 }
 ```
 
@@ -233,6 +338,7 @@ Base URL `http://localhost:4000`. All errors return
 {
   "productId": "cb7fbc23-…",
   "recommendedPlatform": "amazon",
+  "recommendedPrice": 999,
   "platforms": [
     {
       "name": "Amazon", "feePercent": 0.18, "marketPriceRange": [899, 1199],
@@ -243,96 +349,45 @@ Base URL `http://localhost:4000`. All errors return
       "lossRiskAvoided": false
     }
   ],
-  "optimizedListing": { "title": "…", "description": "…", "keywords": ["fast charging", "…"] }
+  "optimizedListing": { "title": "…", "description": "…", "keywords": ["fast charging", "…"] },
+  "insights": { "competitors": [ … ], "reviewSentiment": { … }, "regionalDemand": { … } },
+  "credits": { "plan": "free", "remaining": 5 }
 }
 ```
-
-### `GET /api/products/history` → `200`
-
-Newest-first list of `{ productId, title, thumbnail, category, recommendedPlatform, recommendedPrice, createdAt }`.
-
-### `GET /api/products/:id` → `200` / `404`
-
-The full stored analysis, same shape as the POST response.
-
-### Supporting endpoints
-
-- `GET /api/health` — status, listing optimizer, cache size and TTL
-- `DELETE /api/cache` — drop cached listings so the next analyze is forced live
-- `GET /api/meta` — categories and platforms that populate the form controls
+</details>
 
 ---
 
-## Tests
+## 8. Tests & CI
 
 ```bash
-npm test
+npm test          # backend: ~110 unit + API tests (3 live-scrape tests skipped)
 ```
 
-**71 unit/API tests passing** (plus 3 live-scrape tests skipped unless `LIVE_SCRAPE=1`).
+The backend suite covers the pricing engine (including an exhaustive sweep asserting
+that across **every** category × platform × cost combination, cost + commission is
+always recovered), the listing optimizer, scraper parsing, the market-data provider,
+auth and billing routes, the voice tools, i18n, and API-contract round-trips.
 
-The three cases required by the brief are grouped under
-`Section 2.4 - required worked examples`:
-
-1. **Increase** — cost ₹400, listed at ₹800, market ≈ ₹1000 → recommends **₹999**
-   with `priceAction: "increase"`, break-even ₹567.87, profit (at the ₹800 listed
-   price) ₹170.08, and an explanation citing high demand and competitors pricing
-   higher.
-2. **Decrease** — cost ₹400, listed at ₹1400 → `"decrease"`, with the final price
-   still more than 1.5× the break-even floor.
-3. **Loss prevention** — cost ₹900 on Toys/Alibaba, where the ₹300 market median is
-   far below the ₹975.47 floor → `recommendedPrice === breakEvenPrice` and
-   `lossRiskAvoided === true`.
-
-Plus an exhaustive sweep asserting that across **every** category × platform × cost
-combination, cost + commission is always recovered — and API-contract tests covering
-the response shape, validation failures, the 404 path, and persistence round-trips.
+GitHub Actions runs `lint → format:check → tsc --noEmit → test → build` for both the
+backend and frontend on every push to `main` and every pull request.
 
 ---
 
-## Verified in the browser
+## 9. Out of scope
 
-A scripted Playwright walkthrough drives a real Chrome through the whole product —
-**35/35 checks pass**, with zero console errors. Screenshots in
-[`docs/screenshots/`](docs/screenshots):
-
-| Screen | |
-|---|---|
-| Landing page | [`01-home.png`](docs/screenshots/01-home.png) |
-| Form validation | [`02-analyze-validation.png`](docs/screenshots/02-analyze-validation.png) |
-| Analyze form, filled | [`03-analyze-filled.png`](docs/screenshots/03-analyze-filled.png) |
-| **Recommendation report** | [`04-report-full.png`](docs/screenshots/04-report-full.png) |
-| Dashboard / history | [`07-dashboard.png`](docs/screenshots/07-dashboard.png) |
-| Loss protection | [`09-report-loss-protection.png`](docs/screenshots/09-report-loss-protection.png) |
-| Mobile (390×844) | [`10-mobile-home.png`](docs/screenshots/10-mobile-home.png), [`11-mobile-report.png`](docs/screenshots/11-mobile-report.png) |
-
-The walkthrough asserts the real numbers on the rendered page (₹999 recommendation,
-18.0% / 4.5% commission), that history persists and reopens correctly, that loss
-protection fires, and that neither the home page nor the report scrolls
-horizontally on a phone. The linked screenshots and their exact break-even/profit
-figures predate the GST-on-commission update above (see "The pricing logic") and
-have not been re-captured; re-run the walkthrough to refresh them.
+Real marketplace seller APIs (search-page scraping is used instead), production
+payment settlement (Razorpay stays in test mode), and languages beyond English,
+Hindi and Tamil — deliberately excluded to keep the project focused.
 
 ---
 
-## Design notes
+## Team — Code4Bharat
 
-Light-mode "fintech dashboard" aesthetic on a deep-indigo brand, with two colours
-held strictly semantic: **emerald means profit**, **amber/red mean loss risk**. They
-are never used decoratively, which is what lets the report be read at a glance.
-
-The four marketplace colours are a categorical palette validated for colour-vision
-deficiency across **all** pairs (worst ΔE 10.3 under deuteranopia) — necessary
-because the chart bars re-sort by fit score, so any two can end up adjacent. Colour
-follows the platform, never its rank, so re-sorting never repaints a bar.
-
-Fit score and profit are on different scales, so they get **one chart each** rather
-than a dual axis; both carry direct value labels, so identity never depends on
-colour alone. Accessibility: labelled inputs, `aria-invalid` + `aria-describedby`
-on errors, `aria-live` toasts, a visible focus ring, and a `prefers-reduced-motion`
-guard.
-
-## Out of scope
-
-Real payments, real authentication, live marketplace APIs or scraping, and
-multi-language support — all deliberately excluded to keep the demo tight.
+| Name |
+|---|
+| Sanchit Jaiswal |
+| Krishna Keshab |
+| Chiraag Mutupuri |
+| Sagnik Mitra |
+| Sanjay Gupta |
