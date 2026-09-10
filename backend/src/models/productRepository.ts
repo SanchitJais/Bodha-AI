@@ -4,6 +4,7 @@
  */
 
 import { DEMO_SELLER_ID, getDatabase } from './db.js';
+import { PLATFORMS } from '../data/platformConfig.js';
 import type {
   AnalysisRecord,
   CategoryId,
@@ -11,6 +12,7 @@ import type {
   OptimizedListing,
   PlatformId,
   PlatformRecommendation,
+  ReportInsights,
 } from '../types/index.js';
 
 interface ProductRow {
@@ -26,6 +28,7 @@ interface ProductRow {
   recommendedPrice: number;
   platformsJson: string;
   listingJson: string;
+  insightsJson: string | null;
 }
 
 interface HistoryRow {
@@ -41,7 +44,8 @@ interface HistoryRow {
 const SELECT_FULL = `
   SELECT p.id, p.title, p.description, p.category, p.imageUrl,
          p.manufacturingCost, p.currentPrice, p.createdAt,
-         a.recommendedPlatform, a.recommendedPrice, a.platformsJson, a.listingJson
+         a.recommendedPlatform, a.recommendedPrice, a.platformsJson, a.listingJson,
+         a.insightsJson
   FROM products p
   JOIN analyses a ON a.productId = p.id
 `;
@@ -59,8 +63,45 @@ function toAnalysisRecord(row: ProductRow): AnalysisRecord {
     recommendedPrice: row.recommendedPrice,
     platforms: JSON.parse(row.platformsJson) as PlatformRecommendation[],
     optimizedListing: JSON.parse(row.listingJson) as OptimizedListing,
+    insights: parseInsights(row.insightsJson, row.recommendedPlatform as PlatformId),
     createdAt: row.createdAt,
   };
+}
+
+function parseInsights(raw: string | null, platformId: PlatformId): ReportInsights {
+  const benefits = PLATFORMS[platformId]?.benefits ?? [];
+  if (!raw) {
+    return {
+      language: 'en',
+      competitors: [],
+      reviewSentiment: { available: false, topPraises: [], topComplaints: [] },
+      regionalDemand: { available: false, states: [] },
+      platformBenefits: benefits,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<ReportInsights>;
+    return {
+      language: parsed.language === 'hi' || parsed.language === 'ta' ? parsed.language : 'en',
+      competitors: Array.isArray(parsed.competitors) ? parsed.competitors : [],
+      reviewSentiment: parsed.reviewSentiment ?? {
+        available: false,
+        topPraises: [],
+        topComplaints: [],
+      },
+      regionalDemand: parsed.regionalDemand ?? { available: false, states: [] },
+      platformBenefits: parsed.platformBenefits?.length ? parsed.platformBenefits : benefits,
+    };
+  } catch {
+    return {
+      language: 'en',
+      competitors: [],
+      reviewSentiment: { available: false, topPraises: [], topComplaints: [] },
+      regionalDemand: { available: false, states: [] },
+      platformBenefits: benefits,
+    };
+  }
 }
 
 /** Persist a product plus its analysis in a single transaction. */
@@ -87,14 +128,15 @@ export function saveAnalysis(record: AnalysisRecord, sellerId: string = DEMO_SEL
 
     db.prepare(
       `INSERT INTO analyses
-         (productId, recommendedPlatform, recommendedPrice, platformsJson, listingJson, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+         (productId, recommendedPlatform, recommendedPrice, platformsJson, listingJson, insightsJson, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       record.productId,
       record.recommendedPlatform,
       record.recommendedPrice,
       JSON.stringify(record.platforms),
       JSON.stringify(record.optimizedListing),
+      JSON.stringify(record.insights),
       record.createdAt,
     );
 
@@ -137,4 +179,10 @@ export function listHistory(sellerId: string = DEMO_SELLER_ID, limit = 50): Hist
     recommendedPrice: row.recommendedPrice,
     createdAt: row.createdAt,
   }));
+}
+
+export function updateInsights(productId: string, insights: ReportInsights): void {
+  getDatabase()
+    .prepare('UPDATE analyses SET insightsJson = ? WHERE productId = ?')
+    .run(JSON.stringify(insights), productId);
 }

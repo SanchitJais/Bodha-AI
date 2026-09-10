@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useToast } from '../../hooks/useToast';
 import { cx } from '../../utils/format';
@@ -11,6 +12,7 @@ interface CopyButtonProps {
 
 /** Copies `value` to the clipboard and confirms inline plus via a toast. */
 export function CopyButton({ value, label, className }: CopyButtonProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const { showToast } = useToast();
 
@@ -24,9 +26,9 @@ export function CopyButton({ value, label, className }: CopyButtonProps) {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
-      showToast(label + ' copied to clipboard', 'success');
+      showToast(t('common.copyToast', { label }), 'success');
     } catch {
-      showToast('Could not access the clipboard. Copy manually instead.', 'error');
+      showToast(t('common.copyFail'), 'error');
     }
   }
 
@@ -36,10 +38,10 @@ export function CopyButton({ value, label, className }: CopyButtonProps) {
       onClick={handleCopy}
       aria-label={'Copy ' + label.toLowerCase()}
       className={cx(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition',
+        'inline-flex shrink-0 items-center gap-1.5 px-2 py-1 text-xs font-medium transition',
         copied
-          ? 'bg-profit-50 text-profit-700'
-          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900',
+          ? 'text-profit-700'
+          : 'text-ink-muted ring-1 ring-inset ring-rule hover:text-ink',
         className,
       )}
     >
@@ -62,7 +64,7 @@ export function CopyButton({ value, label, className }: CopyButtonProps) {
           </>
         )}
       </svg>
-      {copied ? 'Copied' : 'Copy'}
+      {copied ? t('common.copied') : t('common.copy')}
     </button>
   );
 }

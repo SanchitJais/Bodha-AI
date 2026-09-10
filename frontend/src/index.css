@@ -9,18 +9,38 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    overflow-x: clip;
   }
 
   body {
-    @apply bg-slate-50 font-sans text-slate-800 antialiased;
+    background-color: #f3efe6;
+    color: #141814;
+    overflow-x: clip;
+    overflow-wrap: anywhere;
+    @apply font-sans antialiased;
   }
 
-  /* A single, consistent focus ring across every interactive element. */
+  html[lang='hi'] body,
+  html[lang='ta'] body {
+    line-height: 1.7;
+  }
+
+  img,
+  svg,
+  a {
+    -webkit-user-drag: none;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-slate-50;
+    outline: none;
+    box-shadow: 0 0 0 2px #f3efe6, 0 0 0 4px #0d6b4c;
   }
 
-  /* Hide the spinner on number inputs - the rupee fields have their own affordances. */
   input[type='number']::-webkit-outer-spin-button,
   input[type='number']::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -35,7 +55,21 @@
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-slate-200/80 bg-white shadow-card;
+    border-radius: 0.25rem;
+    border: 1px solid #cfc8ba;
+    background-color: #faf8f3;
+  }
+
+  .panel {
+    border-radius: 0.25rem;
+    border: 1px solid rgba(20, 24, 20, 0.15);
+    background-color: #faf8f3;
+  }
+
+  .card-quiet {
+    border: 0;
+    border-top: 1px solid #cfc8ba;
+    background: transparent;
   }
 
   .section-shell {
@@ -43,40 +77,86 @@
   }
 
   .label-text {
-    @apply mb-1.5 block text-sm font-semibold text-slate-700;
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #4a4f4a;
   }
 
   .field {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900
-      placeholder:text-slate-400 transition
-      focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
+    width: 100%;
+    border-radius: 0.25rem;
+    border: 1px solid #cfc8ba;
+    background: #fff;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: #141814;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .field::placeholder {
+    color: rgba(74, 79, 74, 0.6);
+  }
+
+  .field:focus {
+    outline: none;
+    border-color: #0d6b4c;
+    box-shadow: 0 0 0 2px rgba(13, 107, 76, 0.25);
   }
 
   .field-invalid {
-    @apply border-danger-500 focus:border-danger-500 focus:ring-danger-500/30;
+    border-color: #ef4444;
   }
 
-  /* Subtle grid backdrop used behind the hero. */
+  .field-invalid:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+  }
+
+  .figure {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+
+  .kicker {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #0a5540;
+  }
+
   .grid-backdrop {
-    background-image:
-      linear-gradient(to right, rgba(99, 102, 241, 0.07) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(99, 102, 241, 0.07) 1px, transparent 1px);
-    background-size: 44px 44px;
+    background-image: linear-gradient(to bottom, transparent 0, transparent 100%);
   }
 
   .skeleton {
-    @apply relative overflow-hidden rounded-lg bg-slate-200/70;
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.25rem;
+    background: rgba(207, 200, 186, 0.5);
   }
 
   .skeleton::after {
     content: '';
-    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    animation: shimmer 1.6s infinite;
     background-image: linear-gradient(
       90deg,
       rgba(255, 255, 255, 0) 0,
-      rgba(255, 255, 255, 0.55) 50%,
+      rgba(255, 255, 255, 0.45) 50%,
       rgba(255, 255, 255, 0) 100%
     );
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 

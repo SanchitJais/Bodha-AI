@@ -38,6 +38,19 @@ export function formatDate(iso: string): string {
   });
 }
 
+export function formatRelativeTime(iso: string | null): string {
+  if (!iso) return 'unknown';
+  const deltaMs = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(deltaMs) || deltaMs < 0) return formatDateTime(iso);
+  const minutes = Math.round(deltaMs / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return minutes + ' min ago';
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return hours + (hours === 1 ? ' hour ago' : ' hours ago');
+  const days = Math.round(hours / 24);
+  return days + (days === 1 ? ' day ago' : ' days ago');
+}
+
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('en-IN', {
     day: 'numeric',
@@ -48,15 +61,15 @@ export function formatDateTime(iso: string): string {
   });
 }
 
-/** Tailwind classes for a Low / Medium / High badge. */
+/** Tailwind classes for a Low / Medium / High status word (text only, not a pill). */
 export function indexLevelClasses(level: IndexLevel, kind: 'demand' | 'competition'): string {
   // High demand is good; high competition is bad - so the same word flips colour.
   const isPositive = kind === 'demand' ? level === 'High' : level === 'Low';
   const isNegative = kind === 'demand' ? level === 'Low' : level === 'High';
 
-  if (isPositive) return 'bg-profit-50 text-profit-700 ring-profit-200';
-  if (isNegative) return 'bg-danger-50 text-danger-700 ring-danger-500/20';
-  return 'bg-risk-50 text-risk-700 ring-risk-200';
+  if (isPositive) return 'text-profit-700';
+  if (isNegative) return 'text-danger-700';
+  return 'text-risk-700';
 }
 
 export const PRICE_ACTION_LABELS: Record<PriceAction, string> = {

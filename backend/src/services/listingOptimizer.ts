@@ -20,8 +20,10 @@
  * ============================================================================
  */
 
-import { CATEGORIES, PLATFORMS } from '../data/mockMarketplaceData.js';
-import type { CategoryId, OptimizedListing, PlatformId } from '../types/index.js';
+import { CATEGORIES } from '../data/categories.js';
+import { PLATFORMS } from '../data/platformConfig.js';
+import { generateJson, hasGeminiKey } from './geminiService.js';
+import type { CategoryId, OptimizedListing, PlatformId, UiLanguage } from '../types/index.js';
 
 export interface ListingOptimizerInput {
   title: string;
@@ -29,6 +31,8 @@ export interface ListingOptimizerInput {
   category: CategoryId;
   recommendedPlatform: PlatformId;
   recommendedPrice: number;
+  language?: UiLanguage;
+  complaintsToAvoid?: string[];
 }
 
 /** Max characters for a marketplace title before it gets truncated in search. */
@@ -62,13 +66,61 @@ const STOP_WORDS = new Set([
 ]);
 
 /** Benefit phrases the rule-based writer appends per category. */
-const CATEGORY_BENEFITS: Record<CategoryId, string> = {
-  'electronics-accessories':
-    'Built for daily use with reliable performance and wide device compatibility.',
-  apparel: 'Cut for everyday comfort with fabric that holds its shape wash after wash.',
-  'home-kitchen': 'Designed to save counter space while standing up to daily kitchen use.',
-  'beauty-personal-care': 'Gentle enough for daily use and suitable for all skin types.',
-  toys: 'Safe, sturdy and built to survive real play, not just the unboxing.',
+const CATEGORY_BENEFITS: Record<UiLanguage, Record<CategoryId, string>> = {
+  en: {
+    'electronics-accessories':
+      'Built for daily use with reliable performance and wide device compatibility.',
+    apparel: 'Cut for everyday comfort with fabric that holds its shape wash after wash.',
+    'home-kitchen': 'Designed to save counter space while standing up to daily kitchen use.',
+    'beauty-personal-care': 'Gentle enough for daily use and suitable for all skin types.',
+    toys: 'Safe, sturdy and built to survive real play, not just the unboxing.',
+  },
+  hi: {
+    'electronics-accessories':
+      'रोज़मर्रा के इस्तेमाल के लिए बनाया गया, भरोसेमंद प्रदर्शन और व्यापक डिवाइस सपोर्ट के साथ।',
+    apparel: 'हर दिन के आराम के लिए कटाई, कपड़ा बार-बार धोने पर भी आकार बनाए रखता है।',
+    'home-kitchen': 'काउंटर जगह बचाता है और रोज़ की रसोई के उपयोग को सहता है।',
+    'beauty-personal-care': 'रोज़ के उपयोग के लिए कोमल, हर त्वचा प्रकार के लिए उपयुक्त।',
+    toys: 'सुरक्षित, मज़बूत और असली खेल के लिए बना — सिर्फ़ अनबॉक्सिंग के लिए नहीं।',
+  },
+  ta: {
+    'electronics-accessories':
+      'தினசரி பயன்பாட்டுக்கு உருவாக்கப்பட்டது, நம்பகமான செயல்திறன் மற்றும் பரந்த சாதன ஆதரவுடன்.',
+    apparel: 'அன்றாட வசதிக்காக வெட்டப்பட்டது, துணி மீண்டும் மீண்டும் துவைத்தும் வடிவம் மாறாது.',
+    'home-kitchen': 'மேசை இடத்தைச் சேமித்து தினசரி சமையலறை பயன்பாட்டைத் தாங்கும்.',
+    'beauty-personal-care': 'தினசரி பயன்பாட்டுக்கு மென்மையானது, அனைத்து தோல் வகைகளுக்கும் ஏற்றது.',
+    toys: 'பாதுகாப்பானது, உறுதியானது, உண்மையான விளையாட்டுக்கு உருவாக்கப்பட்டது — அன் பாக்சிங்கிற்கு மட்டும் அல்ல.',
+  },
+};
+
+const CATEGORY_LABELS_I18N: Record<UiLanguage, Record<CategoryId, string>> = {
+  en: {
+    'electronics-accessories': 'Electronics Accessories',
+    apparel: 'Apparel',
+    'home-kitchen': 'Home & Kitchen',
+    'beauty-personal-care': 'Beauty & Personal Care',
+    toys: 'Toys',
+  },
+  hi: {
+    'electronics-accessories': 'इलेक्ट्रॉनिक्स एक्सेसरीज़',
+    apparel: 'परिधान',
+    'home-kitchen': 'घर और रसोई',
+    'beauty-personal-care': 'सौंदर्य और व्यक्तिगत देखभाल',
+    toys: 'खिलौने',
+  },
+  ta: {
+    'electronics-accessories': 'எலக்ட்ரானிக்ஸ் அணுகுபொருட்கள்',
+    apparel: 'ஆடை',
+    'home-kitchen': 'வீடு மற்றும் சமையலறை',
+    'beauty-personal-care': 'அழகு மற்றும் தனிப்பட்ட பராமரிப்பு',
+    toys: 'பொம்மைகள்',
+  },
+};
+
+const LANGUAGE_NAME: Record<UiLanguage, string> = {
+  en: 'English',
+  hi: 'Hindi',
+  ta: 'Tamil',
 };
 
 function titleCase(word: string): string {
@@ -100,7 +152,8 @@ function extractSalientTerms(source: string, limit: number): string[] {
  * Truncates on a word boundary so it never gets cut mid-word in search.
  */
 function buildTitle(input: ListingOptimizerInput): string {
-  const categoryLabel = CATEGORIES[input.category].label;
+  const language = input.language ?? 'en';
+  const categoryLabel = CATEGORY_LABELS_I18N[language][input.category];
   // Title-case the seller's words, but leave acronyms (USB) and spec tokens
   // (65W, 1.5m) exactly as typed - re-casing those hurts search matching.
   const base = collapseWhitespace(input.title)
@@ -127,22 +180,53 @@ function buildTitle(input: ListingOptimizerInput): string {
  * recommended marketplace.
  */
 function buildDescription(input: ListingOptimizerInput): string {
+  const language = input.language ?? 'en';
   const platformName = PLATFORMS[input.recommendedPlatform].name;
-  const categoryLabel = CATEGORIES[input.category].label.toLowerCase();
+  const categoryLabel = CATEGORY_LABELS_I18N[language][input.category];
   const sellerCopy = collapseWhitespace(input.description);
   const detail = sellerCopy.endsWith('.') ? sellerCopy : sellerCopy + '.';
+  const price = '₹' + Math.round(input.recommendedPrice).toLocaleString('en-IN');
 
-  return [
-    CATEGORY_BENEFITS[input.category],
-    detail,
-    'Listed in ' +
-      categoryLabel +
-      ' and priced for ' +
-      platformName +
-      ' buyers at ₹' +
-      Math.round(input.recommendedPrice).toLocaleString('en-IN') +
-      '. Dispatched quickly with secure packaging.',
-  ].join('\n\n');
+  const closing =
+    language === 'hi'
+      ? categoryLabel +
+        ' श्रेणी में सूचीबद्ध, ' +
+        platformName +
+        ' खरीदारों के लिए ' +
+        price +
+        ' पर। सुरक्षित पैकिंग के साथ जल्दी डिस्पैच।'
+      : language === 'ta'
+        ? categoryLabel +
+          ' வகையில் பட்டியலிடப்பட்டு, ' +
+          platformName +
+          ' வாங்குபவர்களுக்கு ' +
+          price +
+          'க்கு விலை. பாதுகாப்பான பொதியுடன் விரைவாக அனுப்பப்படும்.'
+        : 'Listed in ' +
+          CATEGORIES[input.category].label.toLowerCase() +
+          ' and priced for ' +
+          platformName +
+          ' buyers at ' +
+          price +
+          '. Dispatched quickly with secure packaging.';
+
+  const complaintLine = input.complaintsToAvoid?.length
+    ? language === 'hi'
+      ? 'खरीदार अक्सर इन बातों की शिकायत करते हैं — अपनी लिस्टिंग में स्पष्ट करें: ' +
+        input.complaintsToAvoid.slice(0, 3).join(', ') +
+        '.'
+      : language === 'ta'
+        ? 'வாங்குபவர் இவற்றை அடிக்கடி குறை கூறுகிறார் — உங்கள் பட்டியலில் தெளிவுபடுத்துங்கள்: ' +
+          input.complaintsToAvoid.slice(0, 3).join(', ') +
+          '.'
+        : 'Buyers often mention these issues — address them in your listing: ' +
+          input.complaintsToAvoid.slice(0, 3).join(', ') +
+          '.'
+    : '';
+
+  return [CATEGORY_BENEFITS[language][input.category], detail, closing, complaintLine]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 /**
@@ -189,14 +273,63 @@ export async function ruleBasedOptimizer(input: ListingOptimizerInput): Promise<
   };
 }
 
+async function geminiOptimizer(input: ListingOptimizerInput): Promise<OptimizedListing> {
+  const language = input.language ?? 'en';
+  const platformName = PLATFORMS[input.recommendedPlatform].name;
+
+  const listing = await generateJson<OptimizedListing>(
+    [
+      'You are Bodha AI\'s listing optimizer for Indian marketplaces (Amazon, Flipkart, Snapdeal, Alibaba).',
+      'Write marketplace listing copy in ' + LANGUAGE_NAME[language] + ' only. Do not mix languages.',
+      'Return JSON with keys: title (string, max 120 chars), description (string, 2-4 short paragraphs separated by blank lines), keywords (array of 3 to 5 short phrases).',
+      'Keep product specs, brand tokens and model numbers (USB-C, 65W, 1.5m) unchanged.',
+      'Name the recommended marketplace (' +
+        platformName +
+        ') and price ₹' +
+        Math.round(input.recommendedPrice).toLocaleString('en-IN') +
+        ' in the description.',
+      'Category: ' + CATEGORY_LABELS_I18N[language][input.category],
+      input.complaintsToAvoid?.length
+        ? 'Address these common buyer complaints without sounding defensive: ' +
+          input.complaintsToAvoid.join('; ')
+        : '',
+      'Seller title: ' + input.title,
+      'Seller description: ' + input.description,
+    ].join('\n'),
+  );
+
+  const title = collapseWhitespace(String(listing.title ?? '')).slice(0, MAX_TITLE_LENGTH);
+  const description = String(listing.description ?? '').trim();
+  const keywords = (Array.isArray(listing.keywords) ? listing.keywords : [])
+    .map((keyword) => String(keyword).trim())
+    .filter(Boolean)
+    .slice(0, MAX_KEYWORDS);
+
+  if (!title || !description || keywords.length < MIN_KEYWORDS) {
+    throw new Error('Gemini listing output failed validation');
+  }
+
+  return { title, description, keywords };
+}
+
 /**
- * SWAP POINT - change this single assignment to route through a real LLM.
- *
- * Example once an LLM-backed implementation exists:
- *   export const optimizeListing = process.env.LLM_API_KEY ? llmOptimizer : ruleBasedOptimizer;
+ * Gemini when a key is configured; otherwise the deterministic templates.
+ * Failures fall back to templates so an analysis never dies on the LLM.
  */
-export const optimizeListing: (input: ListingOptimizerInput) => Promise<OptimizedListing> =
-  ruleBasedOptimizer;
+export async function optimizeListing(input: ListingOptimizerInput): Promise<OptimizedListing> {
+  const language = input.language ?? 'en';
+  const withLanguage = { ...input, language };
+
+  if (hasGeminiKey()) {
+    try {
+      return await geminiOptimizer(withLanguage);
+    } catch (error) {
+      console.warn('[bodha-ai] Gemini listing optimizer failed, using templates:', error);
+    }
+  }
+
+  return ruleBasedOptimizer(withLanguage);
+}
 
 /** True when listing copy is generated by templates rather than a live model. */
-export const isUsingMockOptimizer = (): boolean => optimizeListing === ruleBasedOptimizer;
+export const isUsingMockOptimizer = (): boolean => !hasGeminiKey();

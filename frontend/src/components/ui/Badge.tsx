@@ -8,13 +8,13 @@ interface BadgeProps {
   icon?: ReactNode;
 }
 
-/** Small pill used for demand, competition, category and status labels. */
+/** Compact status word. Reserved for real status, not decoration. */
 export function Badge({ children, className, icon }: BadgeProps) {
   return (
     <span
       className={cx(
-        'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset',
-        className ?? 'bg-slate-100 text-slate-700 ring-slate-200',
+        'inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.1em]',
+        className ?? 'text-ink-muted',
       )}
     >
       {icon}

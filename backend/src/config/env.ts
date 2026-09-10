@@ -41,6 +41,12 @@ function readNumber(key: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function readBoolean(key: string, fallback: boolean): boolean {
+  const raw = process.env[key];
+  if (raw === undefined || raw === '') return fallback;
+  return !['0', 'false', 'no', 'off'].includes(raw.toLowerCase());
+}
+
 export const env = {
   port: readNumber('PORT', 4000),
   corsOrigins: (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
@@ -48,8 +54,26 @@ export const env = {
     .map((origin) => origin.trim())
     .filter(Boolean),
   databasePath:
-    process.env.DATABASE_PATH ?? (process.env.VERCEL ? '/tmp/bodha.db' : './data/bodha.db'),
+    process.env.DATABASE_PATH ??
+    (process.env.VERCEL ? '/tmp/bodha.db' : './data/bodha.db'),
   /** Empty in the demo - the rule-based listing optimizer is used instead. */
   llmApiKey: process.env.LLM_API_KEY ?? '',
   llmModel: process.env.LLM_MODEL ?? 'claude-sonnet-5',
+  /** Gemini powers the voice agent and language-aware listing copy when set. */
+  geminiApiKey: process.env.GEMINI_API_KEY || process.env.LLM_API_KEY || '',
+  geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.0-flash',
+  /** How long a scrape is reused before we hit the marketplace again. */
+  cacheTtlHours: readNumber('CACHE_TTL_HOURS', 3),
+  scrapeTimeoutMs: readNumber('SCRAPE_TIMEOUT_MS', 25000),
+  scrapeMaxResults: Math.min(20, Math.max(8, Math.round(readNumber('SCRAPE_MAX_RESULTS', 20)))),
+  scrapeHeadless: readBoolean('SCRAPE_HEADLESS', true),
+  scrapeUserAgent:
+    process.env.SCRAPE_USER_AGENT ??
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  sessionSecret: process.env.SESSION_SECRET ?? 'bodha-dev-session-secret',
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID ?? '',
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET ?? '',
+  /** $10 / month, billed in INR paise for Razorpay test checkout. */
+  proPricePaise: readNumber('PRO_PRICE_PAISE', 83000),
+  freeAnalysesPerMonth: readNumber('FREE_ANALYSES_PER_MONTH', 6),
 } as const;

@@ -6,21 +6,22 @@
  * returns a ranked recommendation. That makes it directly unit-testable (see
  * `src/tests/pricingEngine.test.ts`).
  *
- * The single most important guarantee: a recommended price is NEVER below the
- * true zero-profit floor - manufacturing cost and shipping, both grossed up
- * for the platform's commission. See `calculateBreakEvenPrice` and the clamp
- * inside `analyzePlatform`; `estimatedProfit` at that exact floor is always 0.
+ * The single most important guarantee: a recommended price is NEVER below
+ * `manufacturingCost + platform fees + shipping`. See `calculateBreakEvenPrice`
+ * and the clamp inside `analyzePlatform`.
  */
 
-import { getMarketSnapshot, PLATFORMS } from '../data/mockMarketplaceData.js';
+import { PLATFORMS } from '../data/platformConfig.js';
 import type {
   IndexLevel,
+  MarketSnapshot,
   PlatformId,
   PlatformRecommendation,
   PriceAction,
   PricingInput,
   PricingResult,
 } from '../types/index.js';
+import type { PlatformConfig } from '../types/index.js';
 
 /* -------------------------------------------------------------------------- */
 /* Tunable constants                                                          */
@@ -101,17 +102,21 @@ export function normalizeProfit(estimatedProfit: number, recommendedPrice: numbe
 /**
  * The loss-prevention floor.
  *
- * The marketplace commission is charged on the SALE price, not on cost, so
- * BOTH manufacturing cost and shipping must be grossed up by `1 - feePercent`
- * together - shipping is a real out-of-pocket cost the seller fronts just like
- * manufacturing, and commission bites its share too.
+ * The marketplace commission is charged on the SALE price, not on cost, so the
+ * cost must be grossed up by `1 - feePercent` before shipping is added.
  *
- * GUARANTEE: selling at exactly this price yields exactly zero profit - not a
- * near-zero residual. Concretely, for cost 400 / fee 18% / shipping 60, the
- * floor is (400 + 60) / (1 - 0.18) = 560.98, of which 100.98 is commission,
- * leaving exactly 460.00 to cover the 400 cost and 60 shipping. Any price at
- * or above this floor is provably non-loss-making; `calculateEstimatedProfit`
- * at this exact price always evaluates to 0.
+ * GUARANTEE: at this price the seller always recovers manufacturing cost plus
+ * the marketplace commission in full. Concretely, for cost 400 / fee 18% /
+ * shipping 60 the floor is 547.80, of which 98.60 is commission, leaving
+ * 449.20 - comfortably above the 400 unit cost.
+ *
+ * KNOWN RESIDUAL: because the flat shipping fee is added *after* the gross-up
+ * rather than being grossed up itself, this floor leaves the shipping fee's own
+ * share of commission uncovered - exactly `feePercent * avgShippingFee`
+ * (10.80 in the example above). The formula is specified this way, and the
+ * product guarantee it backs is "cost + platform fees", which it meets. A floor
+ * that also grossed shipping up would be `(cost + shipping) / (1 - fee)`.
+ * `zeroProfitPrice()` below exposes that stricter figure for reference.
  */
 export function calculateBreakEvenPrice(
   manufacturingCost: number,
@@ -121,6 +126,18 @@ export function calculateBreakEvenPrice(
   if (feePercent >= 1) {
     throw new Error('feePercent must be below 1 (100%)');
   }
+  return manufacturingCost / (1 - feePercent) + avgShippingFee;
+}
+
+/**
+ * The strictly-zero-profit price, where shipping is grossed up alongside cost.
+ * Reported for transparency; the recommendation floor is `calculateBreakEvenPrice`.
+ */
+export function zeroProfitPrice(
+  manufacturingCost: number,
+  feePercent: number,
+  avgShippingFee: number,
+): number {
   return (manufacturingCost + avgShippingFee) / (1 - feePercent);
 }
 
@@ -168,14 +185,29 @@ interface ExplanationParams {
   action: PriceAction;
   platformName: string;
   currentPrice: number;
+  manufacturingCost: number;
   recommendedPrice: number;
   breakEvenPrice: number;
   marketPrice: number;
+  marketMin: number;
+  marketMax: number;
   demand: IndexLevel;
   competition: IndexLevel;
   estimatedProfit: number;
+  profitAtRecommended: number;
   lossRiskAvoided: boolean;
   isBulkMarketplace: boolean;
+  listingCount: number;
+}
+
+function describeVsRange(currentPrice: number, marketMin: number, marketMax: number): string {
+  if (currentPrice < marketMin) {
+    return 'below the ' + inr(marketMin) + '–' + inr(marketMax) + ' range for this product';
+  }
+  if (currentPrice > marketMax) {
+    return 'above the ' + inr(marketMin) + '–' + inr(marketMax) + ' range for this product';
+  }
+  return 'inside the ' + inr(marketMin) + '–' + inr(marketMax) + ' range for this product';
 }
 
 /**
@@ -188,27 +220,45 @@ function buildExplanation(params: ExplanationParams): string {
     action,
     platformName,
     currentPrice,
+    manufacturingCost,
     recommendedPrice,
     breakEvenPrice,
     marketPrice,
+    marketMin,
+    marketMax,
     demand,
     competition,
     estimatedProfit,
+    profitAtRecommended,
     lossRiskAvoided,
     isBulkMarketplace,
+    listingCount,
   } = params;
+
+  const sampleNote =
+    listingCount > 0 ? ' (median of ' + listingCount + ' live listings)' : '';
+  const profitAtYourPrice =
+    'At your ' +
+    inr(currentPrice) +
+    ' price, after the ' +
+    platformName +
+    ' commission, shipping and your ' +
+    inr(manufacturingCost) +
+    ' cost, estimated profit is ' +
+    inr(estimatedProfit) +
+    ' per unit. ';
 
   if (lossRiskAvoided) {
     return (
-      'Comparable products on ' +
+      profitAtYourPrice +
+      'Matched listings for this product on ' +
       platformName +
       ' sell around ' +
       inr(marketPrice) +
+      sampleNote +
       ', which is below your break-even of ' +
       inr(breakEvenPrice) +
-      ' once the ' +
-      platformName +
-      ' commission and shipping are paid. Bodha AI has refused to suggest a loss-making price and ' +
+      ' once fees are paid. Bodha AI has refused to suggest a loss-making price and ' +
       'floored the recommendation at ' +
       inr(recommendedPrice) +
       ' instead. Expect slower sell-through here, or reduce manufacturing cost before committing ' +
@@ -219,64 +269,73 @@ function buildExplanation(params: ExplanationParams): string {
   const bulkNote = isBulkMarketplace
     ? ' Remember that Alibaba prices are quoted per unit at volume, so this assumes a bulk order.'
     : '';
+  const vsRange = describeVsRange(currentPrice, marketMin, marketMax);
 
   if (action === 'increase') {
     return (
-      'Similar products on ' +
+      profitAtYourPrice +
+      'Your price is ' +
+      vsRange +
+      '. Similar products on ' +
       platformName +
       ' sell for around ' +
       inr(marketPrice) +
-      ', but you are listed at ' +
-      inr(currentPrice) +
+      sampleNote +
       '. With ' +
       demand.toLowerCase() +
       ' demand and ' +
       competition.toLowerCase() +
       ' competition, raising your price to ' +
       inr(recommendedPrice) +
-      ' keeps you in line with competitors who are already pricing higher, and lifts your net profit ' +
+      ' keeps you in line with competitors who are already pricing higher, and would change net profit ' +
       'to about ' +
-      inr(estimatedProfit) +
-      ' per unit.' +
+      inr(profitAtRecommended) +
+      ' per unit at the recommended price.' +
       bulkNote
     );
   }
 
   if (action === 'decrease') {
     return (
-      'You are listed at ' +
-      inr(currentPrice) +
+      profitAtYourPrice +
+      'Your price is ' +
+      vsRange +
       ' while comparable products on ' +
       platformName +
       ' sell around ' +
       inr(marketPrice) +
+      sampleNote +
       '. Coming down to ' +
       inr(recommendedPrice) +
       ' makes you competitive against ' +
       competition.toLowerCase() +
       '-competition rivals while staying comfortably above your break-even of ' +
       inr(breakEvenPrice) +
-      ' - you still keep about ' +
-      inr(estimatedProfit) +
-      ' per unit.' +
+      ' — you would still keep about ' +
+      inr(profitAtRecommended) +
+      ' per unit at the recommended price.' +
       bulkNote
     );
   }
 
   return (
+    profitAtYourPrice +
     'Your ' +
     inr(currentPrice) +
-    ' price is already well positioned against the ' +
+    ' price is already well positioned (' +
+    vsRange +
+    ') against the ' +
     inr(marketPrice) +
+    sampleNote +
     ' going rate on ' +
     platformName +
     '. With ' +
     demand.toLowerCase() +
     ' demand and ' +
     competition.toLowerCase() +
-    ' competition there is no need to re-price; you are earning roughly ' +
-    inr(estimatedProfit) +
-    ' per unit and sit safely above your ' +
+    ' competition there is no need to re-price; keep ' +
+    inr(currentPrice) +
+    ' and you sit safely above your ' +
     inr(breakEvenPrice) +
     ' break-even.' +
     bulkNote
@@ -287,21 +346,98 @@ function buildExplanation(params: ExplanationParams): string {
 /* Public API                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/** Stub shown when a scrape failed and there is no cached data to fall back on. */
+export function unavailableRecommendation(platform: PlatformConfig): PlatformRecommendation {
+  return {
+    id: platform.id,
+    name: platform.name,
+    feePercent: platform.feePercent,
+    avgShippingFee: platform.avgShippingFee,
+    isBulkMarketplace: platform.isBulkMarketplace,
+    marketPrice: 0,
+    marketPriceRange: [0, 0],
+    breakEvenPrice: 0,
+    recommendedPrice: 0,
+    estimatedProfit: 0,
+    profitMargin: 0,
+    profitAvailable: false,
+    profitError:
+      'Profit cannot be calculated until manufacturing cost and selling price are both available.',
+    competitionIndex: 0,
+    demandIndex: 0,
+    competition: 'Low',
+    demand: 'Low',
+    fitScore: 0,
+    priceAction: 'hold',
+    explanation:
+      'Live market data is temporarily unavailable for ' +
+      platform.name +
+      '. Bodha AI could not read comparable listings just now, and no cached snapshot exists yet.',
+    lossRiskAvoided: false,
+    unavailable: true,
+    dataFreshness: 'unavailable',
+    lastUpdated: null,
+    listingCount: 0,
+  };
+}
+
 /** Run the full pricing analysis for one marketplace. */
 export function analyzePlatform(
   input: PricingInput,
   platformId: PlatformId,
+  snapshot: MarketSnapshot,
 ): PlatformRecommendation {
   const platform = PLATFORMS[platformId];
   if (!platform) {
     throw new Error('Unknown platform "' + platformId + '"');
   }
 
-  const snapshot = getMarketSnapshot(input.category, platformId);
+  if (input.manufacturingCost <= 0 || input.currentPrice <= 0) {
+    throw new Error('manufacturingCost and currentPrice must both be greater than zero');
+  }
+  if (!Number.isFinite(platform.feePercent) || !Number.isFinite(platform.avgShippingFee)) {
+    throw new Error('Platform fee and shipping must be available to calculate profit');
+  }
+
   const { feePercent, avgShippingFee } = platform;
+  const sellerProfit = calculateEstimatedProfit(
+    input.currentPrice,
+    input.manufacturingCost,
+    feePercent,
+    avgShippingFee,
+  );
+  const sellerMargin = sellerProfit / input.currentPrice;
+
+  if (snapshot.unavailable || snapshot.comparablePrices.length === 0) {
+    const stub = unavailableRecommendation(platform);
+    stub.breakEvenPrice = round(
+      calculateBreakEvenPrice(input.manufacturingCost, feePercent, avgShippingFee),
+    );
+    stub.estimatedProfit = round(sellerProfit);
+    stub.profitMargin = round(sellerMargin, 4);
+    stub.profitAvailable = true;
+    stub.profitError = null;
+    stub.lastUpdated = snapshot.lastUpdated;
+    stub.explanation =
+      'Live market data is temporarily unavailable for ' +
+      platform.name +
+      '. Bodha AI could not read comparable listings for this product, so median and range cannot be shown. ' +
+      'Estimated profit at your ' +
+      inr(input.currentPrice) +
+      ' price after the ' +
+      platform.name +
+      ' commission, shipping and your ' +
+      inr(input.manufacturingCost) +
+      ' cost is ' +
+      inr(sellerProfit) +
+      '.';
+    return stub;
+  }
 
   // 1. What comparable listings actually sell for.
   const marketPrice = median(snapshot.comparablePrices);
+  const marketMin = Math.min(...snapshot.comparablePrices);
+  const marketMax = Math.max(...snapshot.comparablePrices);
 
   // 2. The loss-prevention floor.
   const breakEvenPrice = calculateBreakEvenPrice(
@@ -314,18 +450,19 @@ export function analyzePlatform(
   const lossRiskAvoided = marketPrice < breakEvenPrice;
   const recommendedPrice = lossRiskAvoided ? breakEvenPrice : marketPrice;
 
-  // 4-5. Unit economics at the recommended price.
-  const estimatedProfit = calculateEstimatedProfit(
+  // 4-5. Unit economics at the seller's listed price (never at a silent zero).
+  const estimatedProfit = sellerProfit;
+  const profitMargin = sellerMargin;
+  const profitAtRecommended = calculateEstimatedProfit(
     recommendedPrice,
     input.manufacturingCost,
     feePercent,
     avgShippingFee,
   );
-  const profitMargin = estimatedProfit / recommendedPrice;
 
-  // 6. Weighted marketplace fit.
+  // 6. Weighted marketplace fit from the seller's actual profit, not a floored price.
   const fitScore = calculateFitScore(
-    normalizeProfit(estimatedProfit, recommendedPrice),
+    normalizeProfit(estimatedProfit, input.currentPrice),
     snapshot.competitionIndex,
     snapshot.demandIndex,
   );
@@ -350,6 +487,8 @@ export function analyzePlatform(
     recommendedPrice: round(recommendedPrice),
     estimatedProfit: round(estimatedProfit),
     profitMargin: round(profitMargin, 4),
+    profitAvailable: true,
+    profitError: null,
     competitionIndex: snapshot.competitionIndex,
     demandIndex: snapshot.demandIndex,
     competition,
@@ -360,24 +499,36 @@ export function analyzePlatform(
       action: priceAction,
       platformName: platform.name,
       currentPrice: input.currentPrice,
+      manufacturingCost: input.manufacturingCost,
       recommendedPrice,
       breakEvenPrice,
       marketPrice,
+      marketMin,
+      marketMax,
       demand,
       competition,
       estimatedProfit,
+      profitAtRecommended,
       lossRiskAvoided,
       isBulkMarketplace: platform.isBulkMarketplace,
+      listingCount: snapshot.listingCount,
     }),
     lossRiskAvoided,
+    unavailable: false,
+    dataFreshness: snapshot.dataFreshness,
+    lastUpdated: snapshot.lastUpdated,
+    listingCount: snapshot.listingCount,
   };
 }
 
 /**
  * Analyse every selected marketplace and rank them by fit score.
- * The highest-scoring platform becomes the "Recommended Marketplace".
+ * The highest-scoring *available* platform becomes the recommended marketplace.
  */
-export function analyzePricing(input: PricingInput): PricingResult {
+export function analyzePricing(
+  input: PricingInput,
+  snapshots: Partial<Record<PlatformId, MarketSnapshot>>,
+): PricingResult {
   if (input.selectedPlatforms.length === 0) {
     throw new Error('At least one marketplace must be selected');
   }
@@ -386,8 +537,27 @@ export function analyzePricing(input: PricingInput): PricingResult {
   }
 
   const platforms = input.selectedPlatforms
-    .map((platformId) => analyzePlatform(input, platformId))
-    .sort((a, b) => b.fitScore - a.fitScore);
+    .map((platformId) => {
+      const snapshot = snapshots[platformId];
+      return analyzePlatform(
+        input,
+        platformId,
+        snapshot ?? {
+          comparablePrices: [],
+          demandIndex: 0,
+          competitionIndex: 0,
+          dataFreshness: 'unavailable',
+          lastUpdated: null,
+          listingCount: 0,
+          unavailable: true,
+        },
+      );
+    })
+    .sort((a, b) => {
+      if (a.unavailable !== b.unavailable) return a.unavailable ? 1 : -1;
+      return b.fitScore - a.fitScore;
+    });
 
-  return { recommendedPlatform: platforms[0].id, platforms };
+  const winner = platforms.find((platform) => !platform.unavailable) ?? platforms[0];
+  return { recommendedPlatform: winner.id, platforms };
 }

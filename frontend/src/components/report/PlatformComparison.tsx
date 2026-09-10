@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next';
+
 import { LossProtectionBadge } from './LossProtectionNotice';
-import { Badge } from '../ui/Badge';
+import { DataFreshnessBadge } from './DataFreshnessBadge';
 import type { PlatformId, PlatformRecommendation } from '../../types';
 import {
   cx,
@@ -12,149 +14,212 @@ import {
 interface PlatformComparisonProps {
   platforms: PlatformRecommendation[];
   recommendedPlatform: PlatformId;
+  currentPrice: number;
 }
 
 /**
  * Side-by-side marketplace comparison: a table on desktop where scanning
  * columns is natural, and stacked cards on small screens where it is not.
  */
-export function PlatformComparison({ platforms, recommendedPlatform }: PlatformComparisonProps) {
+function vsRangeKey(price: number, range: [number, number]) {
+  if (price < range[0]) return 'sellerVsRangeBelow' as const;
+  if (price > range[1]) return 'sellerVsRangeAbove' as const;
+  return 'sellerVsRangeWithin' as const;
+}
+
+function adviceKey(action: PlatformRecommendation['priceAction']) {
+  if (action === 'increase') return 'priceAdviceIncrease' as const;
+  if (action === 'decrease') return 'priceAdviceDecrease' as const;
+  return 'priceAdviceHold' as const;
+}
+
+export function PlatformComparison({
+  platforms,
+  recommendedPlatform,
+  currentPrice,
+}: PlatformComparisonProps) {
+  const { t } = useTranslation();
+
   return (
-    <section aria-labelledby="comparison-heading">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+    <section className="opacity-90" aria-labelledby="comparison-heading">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 id="comparison-heading" className="text-title font-bold text-slate-900">
-            Marketplace comparison
+          <h2 id="comparison-heading" className="font-display text-base font-medium text-ink-muted">
+            {t('report.comparisonTitle')}
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Ranked by fit score across every marketplace you selected.
-          </p>
+          <p className="mt-1 text-sm text-ink-muted">{t('report.comparisonLead')}</p>
         </div>
       </div>
 
-      {/* ------------------------------------------------- Desktop: data table */}
-      <div className="card hidden overflow-hidden lg:block">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <caption className="sr-only">
-              Fee, market price range, competition, demand, estimated profit and fit score for each
-              selected marketplace.
-            </caption>
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80 text-xs uppercase tracking-wide text-slate-500">
-                <th scope="col" className="px-5 py-3 font-bold">
-                  Marketplace
-                </th>
-                <th scope="col" className="px-5 py-3 text-right font-bold">
-                  Fee
-                </th>
-                <th scope="col" className="px-5 py-3 text-right font-bold">
-                  Market range
-                </th>
-                <th scope="col" className="px-5 py-3 text-center font-bold">
-                  Competition
-                </th>
-                <th scope="col" className="px-5 py-3 text-center font-bold">
-                  Demand
-                </th>
-                <th scope="col" className="px-5 py-3 text-right font-bold">
-                  Recommended
-                </th>
-                <th scope="col" className="px-5 py-3 text-right font-bold">
-                  Profit / unit
-                </th>
-                <th scope="col" className="px-5 py-3 text-right font-bold">
-                  Fit
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {platforms.map((platform) => {
-                const isWinner = platform.id === recommendedPlatform;
+      <div className="hidden max-w-full overflow-x-auto border-t border-rule lg:block">
+        <table className="w-full text-left text-sm">
+          <caption className="sr-only">{t('report.evidenceTableCaption')}</caption>
+          <thead>
+            <tr className="border-b border-rule text-[11px] uppercase tracking-wide text-ink-muted">
+              <th scope="col" className="px-4 py-3 font-medium">
+                {t('report.marketplace')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {t('common.fee')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {t('report.listings')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {t('report.marketRange')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {t('report.competition')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {t('report.demand')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {t('report.recommended')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {t('report.profitUnit')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {t('report.fit')}
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-rule">
+            {platforms.map((platform) => {
+              const isWinner = platform.id === recommendedPlatform;
+              const unavailable = platform.unavailable === true;
 
-                return (
-                  <tr
-                    key={platform.id}
-                    className={cx(
-                      'transition',
-                      isWinner ? 'bg-brand-50/50' : 'hover:bg-slate-50/70',
-                    )}
-                  >
-                    <th scope="row" className="px-5 py-4 font-semibold text-slate-900">
-                      <span className="flex items-center gap-2.5">
-                        <span
-                          className="h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: PLATFORM_COLORS[platform.id] }}
-                          aria-hidden="true"
-                        />
-                        <span>
-                          {platform.name}
-                          {isWinner && (
-                            <span className="ml-2 rounded-md bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                              Best fit
-                            </span>
-                          )}
-                          {platform.isBulkMarketplace && (
-                            <span className="mt-0.5 block text-[11px] font-normal text-slate-500">
-                              Volume-based B2B pricing
-                            </span>
-                          )}
+              return (
+                <tr key={platform.id} className={unavailable ? 'text-ink-muted/70' : undefined}>
+                  <th scope="row" className="px-4 py-3.5 font-medium text-ink">
+                    <span className="flex items-center gap-2.5">
+                      <span
+                        className="h-2 w-2 shrink-0"
+                        style={{ backgroundColor: PLATFORM_COLORS[platform.id] }}
+                        aria-hidden="true"
+                      />
+                      <span>
+                        {platform.name}
+                        {isWinner && !unavailable && (
+                          <span className="ml-2 text-[11px] font-medium uppercase tracking-[0.12em] text-brand-700">
+                            {t('common.bestFit')}
+                          </span>
+                        )}
+                        {platform.isBulkMarketplace && (
+                          <span className="mt-0.5 block text-[11px] font-normal text-ink-muted">
+                            {t('report.volumeNote')}
+                          </span>
+                        )}
+                        <span className="mt-1.5 block">
+                          <DataFreshnessBadge
+                            freshness={platform.dataFreshness ?? 'unavailable'}
+                            lastUpdated={platform.lastUpdated}
+                            compact
+                          />
                         </span>
                       </span>
-                    </th>
-                    <td className="px-5 py-4 text-right tabular-nums text-slate-700">
-                      {(platform.feePercent * 100).toFixed(1)}%
+                    </span>
+                  </th>
+                  {unavailable ? (
+                    <td colSpan={8} className="px-4 py-3.5 text-sm text-ink-muted">
+                      <p>{t('report.marketDataMissing')}</p>
+                      <p className="mt-1">
+                        {platform.profitAvailable === false
+                          ? t('report.profitMissing')
+                          : t('report.profitUnit') + ' ' + formatCurrencyPrecise(platform.estimatedProfit)}
+                      </p>
                     </td>
-                    <td className="px-5 py-4 text-right tabular-nums text-slate-700">
-                      {formatCurrency(platform.marketPriceRange[0])} –{' '}
-                      {formatCurrency(platform.marketPriceRange[1])}
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <Badge className={indexLevelClasses(platform.competition, 'competition')}>
-                        {platform.competition}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <Badge className={indexLevelClasses(platform.demand, 'demand')}>
-                        {platform.demand}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <span className="block tabular-nums font-bold text-slate-900">
-                        {formatCurrency(platform.recommendedPrice)}
-                      </span>
-                      {platform.lossRiskAvoided && (
-                        <span className="mt-1 inline-block">
-                          <LossProtectionBadge marketPrice={platform.marketPrice} />
+                  ) : (
+                    <>
+                      <td className="figure px-4 py-3.5 text-right text-ink-muted">
+                        {(platform.feePercent * 100).toFixed(1)}%
+                      </td>
+                      <td className="figure px-4 py-3.5 text-right text-ink-muted">
+                        {platform.listingCount}
+                      </td>
+                      <td className="px-4 py-3.5 text-right text-ink-muted">
+                        <span className="figure block">
+                          {formatCurrency(platform.marketPriceRange[0])} –{' '}
+                          {formatCurrency(platform.marketPriceRange[1])}
                         </span>
-                      )}
-                    </td>
-                    <td
-                      className={cx(
-                        'px-5 py-4 text-right tabular-nums font-bold',
-                        platform.estimatedProfit > 0 ? 'text-profit-600' : 'text-danger-600',
-                      )}
-                    >
-                      {formatCurrencyPrecise(platform.estimatedProfit)}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <FitScoreCell score={platform.fitScore} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        <span className="mt-1 block text-[11px]">
+                          {t('report.medianPrice')} {formatCurrency(platform.marketPrice)}
+                        </span>
+                        <span className="mt-1 block text-[11px]">
+                          {t('report.' + vsRangeKey(currentPrice, platform.marketPriceRange), {
+                            price: formatCurrency(currentPrice),
+                            min: formatCurrency(platform.marketPriceRange[0]),
+                            max: formatCurrency(platform.marketPriceRange[1]),
+                          })}
+                        </span>
+                      </td>
+                      <td
+                        className={cx(
+                          'px-4 py-3.5 text-right text-xs font-medium',
+                          indexLevelClasses(platform.competition, 'competition'),
+                        )}
+                      >
+                        {t('levels.' + platform.competition)}
+                      </td>
+                      <td
+                        className={cx(
+                          'px-4 py-3.5 text-right text-xs font-medium',
+                          indexLevelClasses(platform.demand, 'demand'),
+                        )}
+                      >
+                        {t('levels.' + platform.demand)}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <span className="figure block font-medium text-ink">
+                          {formatCurrency(platform.recommendedPrice)}
+                        </span>
+                        {platform.lossRiskAvoided && (
+                          <span className="mt-1 inline-block">
+                            <LossProtectionBadge marketPrice={platform.marketPrice} />
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        {platform.profitAvailable === false ? (
+                          <span className="text-xs text-danger-600">{t('report.profitMissing')}</span>
+                        ) : (
+                          <>
+                            <span
+                              className={cx(
+                                'figure block font-medium',
+                                platform.estimatedProfit > 0 ? 'text-profit-600' : 'text-danger-600',
+                              )}
+                            >
+                              {formatCurrencyPrecise(platform.estimatedProfit)}
+                            </span>
+                            <span className="mt-1 block text-[11px] font-medium text-ink">
+                              {t('report.' + adviceKey(platform.priceAction), {
+                                price: formatCurrency(currentPrice),
+                              })}
+                            </span>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <FitScoreCell score={platform.fitScore} />
+                      </td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      {/* --------------------------------------------------- Mobile: card grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:hidden">
+      <div className="grid gap-0 sm:grid-cols-2 sm:gap-x-8 lg:hidden">
         {platforms.map((platform) => (
           <PlatformCard
             key={platform.id}
             platform={platform}
             isWinner={platform.id === recommendedPlatform}
+            currentPrice={currentPrice}
           />
         ))}
       </div>
@@ -165,12 +230,10 @@ export function PlatformComparison({ platforms, recommendedPlatform }: PlatformC
 function FitScoreCell({ score }: { score: number }) {
   return (
     <span className="inline-flex items-center gap-2">
-      <span className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
-        <span className="block h-full rounded-full bg-brand-500" style={{ width: score + '%' }} />
+      <span className="h-[3px] w-12 overflow-hidden bg-rule">
+        <span className="block h-full bg-ink" style={{ width: score + '%' }} />
       </span>
-      <span className="w-9 tabular-nums text-right font-bold text-slate-900">
-        {score.toFixed(1)}
-      </span>
+      <span className="figure w-9 text-right font-medium text-ink">{score.toFixed(1)}</span>
     </span>
   );
 }
@@ -178,83 +241,134 @@ function FitScoreCell({ score }: { score: number }) {
 function PlatformCard({
   platform,
   isWinner,
+  currentPrice,
 }: {
   platform: PlatformRecommendation;
   isWinner: boolean;
+  currentPrice: number;
 }) {
+  const { t } = useTranslation();
+  const unavailable = platform.unavailable === true;
+
   return (
-    <article className={cx('card p-5', isWinner && 'ring-2 ring-brand-500')}>
+    <article
+      className={cx(
+        'border-t border-rule py-5',
+        isWinner && !unavailable && 'border-t-2 border-t-brand-600',
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <span
-            className="h-3 w-3 shrink-0 rounded-full"
+            className="h-2.5 w-2.5 shrink-0"
             style={{ backgroundColor: PLATFORM_COLORS[platform.id] }}
             aria-hidden="true"
           />
-          <h3 className="text-base font-bold text-slate-900">{platform.name}</h3>
+          <h3 className="font-display text-base font-medium text-ink">{platform.name}</h3>
         </div>
-        {isWinner && (
-          <span className="rounded-md bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-            Best fit
+        {isWinner && !unavailable && (
+          <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-brand-700">
+            {t('common.bestFit')}
           </span>
         )}
       </div>
 
-      <div className="mt-4 flex items-baseline justify-between">
-        <span className="text-2xl font-extrabold tabular-nums tracking-tight text-slate-900">
-          {formatCurrency(platform.recommendedPrice)}
-        </span>
-        <span className="text-xs font-semibold text-slate-500">
-          fit {platform.fitScore.toFixed(1)}
-        </span>
+      <div className="mt-3">
+        <DataFreshnessBadge
+          freshness={platform.dataFreshness ?? 'unavailable'}
+          lastUpdated={platform.lastUpdated}
+        />
       </div>
 
-      {platform.lossRiskAvoided && (
-        <div className="mt-2">
-          <LossProtectionBadge marketPrice={platform.marketPrice} />
+      {unavailable ? (
+        <div className="mt-4 text-sm leading-relaxed text-ink-muted">
+          <p>{t('report.marketDataMissing')}</p>
+          <p className="mt-2 text-ink">
+            {platform.profitAvailable === false
+              ? t('report.profitMissing')
+              : t('report.profitUnit') + ' ' + formatCurrencyPrecise(platform.estimatedProfit)}
+          </p>
         </div>
-      )}
+      ) : (
+        <>
+          <div className="mt-4 flex items-baseline justify-between">
+            <span className="figure text-2xl font-medium tracking-tight text-ink">
+              {formatCurrency(platform.recommendedPrice)}
+            </span>
+            <span className="figure text-xs text-ink-muted">
+              fit {platform.fitScore.toFixed(1)}
+            </span>
+          </div>
 
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        <Badge className={indexLevelClasses(platform.demand, 'demand')}>
-          {platform.demand} demand
-        </Badge>
-        <Badge className={indexLevelClasses(platform.competition, 'competition')}>
-          {platform.competition} competition
-        </Badge>
-      </div>
+          {platform.lossRiskAvoided && (
+            <div className="mt-2">
+              <LossProtectionBadge marketPrice={platform.marketPrice} />
+            </div>
+          )}
 
-      <dl className="mt-4 space-y-1.5 border-t border-slate-100 pt-3 text-sm">
-        <div className="flex justify-between">
-          <dt className="text-slate-500">Fee</dt>
-          <dd className="tabular-nums font-semibold text-slate-900">
-            {(platform.feePercent * 100).toFixed(1)}%
-          </dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-slate-500">Market range</dt>
-          <dd className="tabular-nums font-semibold text-slate-900">
-            {formatCurrency(platform.marketPriceRange[0])} –{' '}
-            {formatCurrency(platform.marketPriceRange[1])}
-          </dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-slate-500">Profit / unit</dt>
-          <dd
-            className={cx(
-              'tabular-nums font-bold',
-              platform.estimatedProfit > 0 ? 'text-profit-600' : 'text-danger-600',
-            )}
-          >
-            {formatCurrencyPrecise(platform.estimatedProfit)}
-          </dd>
-        </div>
-      </dl>
+          <p className="mt-4 text-xs text-ink-muted">
+            <span className={indexLevelClasses(platform.demand, 'demand')}>
+              {t('levels.' + platform.demand)} {t('report.demand')}
+            </span>
+            <span className="mx-2 text-rule">·</span>
+            <span className={indexLevelClasses(platform.competition, 'competition')}>
+              {t('levels.' + platform.competition)} {t('report.competition')}
+            </span>
+          </p>
 
-      {platform.isBulkMarketplace && (
-        <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
-          Alibaba prices are quoted per unit at volume — this assumes a bulk order.
-        </p>
+          <dl className="mt-4 space-y-1.5 border-t border-rule pt-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-ink-muted">{t('common.fee')}</dt>
+              <dd className="figure font-medium text-ink">
+                {(platform.feePercent * 100).toFixed(1)}%
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-ink-muted">{t('report.medianPrice')}</dt>
+              <dd className="figure font-medium text-ink">{formatCurrency(platform.marketPrice)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-ink-muted">{t('report.marketRange')}</dt>
+              <dd className="figure font-medium text-ink">
+                {formatCurrency(platform.marketPriceRange[0])} –{' '}
+                {formatCurrency(platform.marketPriceRange[1])}
+              </dd>
+            </div>
+            <p className="text-xs text-ink">
+              {t('report.' + vsRangeKey(currentPrice, platform.marketPriceRange), {
+                price: formatCurrency(currentPrice),
+                min: formatCurrency(platform.marketPriceRange[0]),
+                max: formatCurrency(platform.marketPriceRange[1]),
+              })}
+            </p>
+            <div className="flex justify-between">
+              <dt className="text-ink-muted">{t('report.profitUnit')}</dt>
+              <dd
+                className={cx(
+                  'figure font-medium',
+                  platform.profitAvailable === false
+                    ? 'text-danger-600'
+                    : platform.estimatedProfit > 0
+                      ? 'text-profit-600'
+                      : 'text-danger-600',
+                )}
+              >
+                {platform.profitAvailable === false
+                  ? t('report.profitMissing')
+                  : formatCurrencyPrecise(platform.estimatedProfit)}
+              </dd>
+            </div>
+            <p className="text-xs font-medium text-ink">
+              {t('report.' + adviceKey(platform.priceAction), { price: formatCurrency(currentPrice) })}
+            </p>
+          </dl>
+
+          {platform.isBulkMarketplace && (
+            <p className="mt-3 text-[11px] leading-relaxed text-ink-muted">
+              {t('report.alibabaNote')}
+            </p>
+          )}
+        </>
       )}
     </article>
   );

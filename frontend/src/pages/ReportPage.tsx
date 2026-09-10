@@ -1,20 +1,35 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { AnalyzingSkeleton } from '../components/report/AnalyzingSkeleton';
+import { ComparisonEvidence } from '../components/report/ComparisonEvidence';
+import { CompetitorAnalysisPanel } from '../components/report/CompetitorAnalysisPanel';
 import { OptimizedListingPanel } from '../components/report/OptimizedListingPanel';
+import { PlatformBenefitsList } from '../components/report/PlatformBenefitsList';
+import { PlatformProfiles } from '../components/report/PlatformProfiles';
 import { PlatformCharts } from '../components/report/PlatformCharts';
 import { PlatformComparison } from '../components/report/PlatformComparison';
 import { PriceRecommendationPanel } from '../components/report/PriceRecommendationPanel';
 import { RecommendationBanner } from '../components/report/RecommendationBanner';
+import { ReportSectionNav } from '../components/report/ReportSectionNav';
+import { ReviewDemandPanel } from '../components/report/ReviewDemandPanel';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useProduct } from '../hooks/useProducts';
-import { ApiError } from '../services/api';
-import { CATEGORY_LABELS, formatCurrency } from '../utils/format';
+import { resolveAppLanguage } from '../i18n';
+import { ApiError, api } from '../services/api';
+import { useToast } from '../hooks/useToast';
+import { formatCurrency } from '../utils/format';
+import { reportInsights, type ReportSectionId } from '../utils/insights';
 
 export function ReportPage() {
+  const { t, i18n } = useTranslation();
   const { productId } = useParams<{ productId: string }>();
   const { data: analysis, isLoading, isError, error } = useProduct(productId);
+  const { showToast } = useToast();
+  const [section, setSection] = useState<ReportSectionId>('overview');
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   if (isLoading) {
     return <AnalyzingSkeleton />;
@@ -26,21 +41,21 @@ export function ReportPage() {
     return (
       <div className="section-shell py-16">
         <EmptyState
-          title={isMissing ? 'That analysis no longer exists' : 'Could not load this report'}
+          title={isMissing ? t('report.missingTitle') : t('report.loadFail')}
           description={
             isMissing
-              ? 'The product you are looking for is not in the database. It may have been created before the last reset.'
+              ? t('report.missingBody')
               : error instanceof Error
                 ? error.message
-                : 'Something went wrong while loading this report.'
+                : t('report.loadFail')
           }
           action={
             <div className="flex gap-3">
               <Link to="/dashboard">
-                <Button variant="secondary">Back to dashboard</Button>
+                <Button variant="secondary">{t('report.back')}</Button>
               </Link>
               <Link to="/analyze">
-                <Button>Run a new analysis</Button>
+                <Button>{t('report.new')}</Button>
               </Link>
             </div>
           }
@@ -49,112 +64,180 @@ export function ReportPage() {
     );
   }
 
+  const report = analysis;
   const winner =
-    analysis.platforms.find((platform) => platform.id === analysis.recommendedPlatform) ??
-    analysis.platforms[0];
+    report.platforms.find((platform) => platform.id === report.recommendedPlatform) ??
+    report.platforms[0];
+  const insights = reportInsights(report);
+  const productIdForPdf = report.productId;
+
+  async function handlePdf() {
+    setPdfBusy(true);
+    try {
+      await api.downloadReportPdf(
+        productIdForPdf,
+        resolveAppLanguage(i18n.resolvedLanguage ?? i18n.language),
+      );
+    } catch (downloadError) {
+      showToast(
+        downloadError instanceof Error ? downloadError.message : t('report.pdfFail'),
+        'error',
+      );
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   return (
-    <div className="section-shell space-y-8 py-8 sm:py-12">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-slate-500">
-        <Link to="/dashboard" className="rounded font-medium transition hover:text-brand-700">
-          Dashboard
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="truncate font-medium text-slate-700">{analysis.title}</span>
-      </nav>
+    <div className="section-shell py-8 sm:py-12">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
+        <nav aria-label="Breadcrumb" className="flex min-w-0 max-w-full items-center gap-1.5 text-sm text-ink-muted">
+          <Link to="/dashboard" className="shrink-0 rounded font-medium transition hover:text-brand-700">
+            {t('report.breadcrumb')}
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="min-w-0 truncate font-medium text-ink" title={report.title}>
+            {report.title}
+          </span>
+        </nav>
 
-      <RecommendationBanner analysis={analysis} winner={winner} />
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
-        <PriceRecommendationPanel platform={winner} currentPrice={analysis.currentPrice} />
-        <ProductSummaryCard analysis={analysis} />
+        <Button variant="secondary" onClick={() => void handlePdf()} loading={pdfBusy}>
+          {t('report.downloadPdf')}
+        </Button>
       </div>
 
-      <PlatformComparison
-        platforms={analysis.platforms}
-        recommendedPlatform={analysis.recommendedPlatform}
-      />
+      <div className="mt-8 grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start">
+        <div className="sticky top-16 z-10 -mx-1 bg-[#f3efe6]/95 px-1 pb-3 backdrop-blur-sm lg:top-24 lg:mx-0 lg:bg-transparent lg:px-0 lg:pb-0 lg:backdrop-blur-none">
+          <ReportSectionNav active={section} onChange={setSection} />
+        </div>
 
-      <PlatformCharts platforms={analysis.platforms} />
+        <div className="min-w-0">
+          {section === 'overview' && (
+            <div className="space-y-8">
+              <RecommendationBanner analysis={report} winner={winner} />
+              <div>
+                <h2 className="font-display text-title font-medium text-ink">
+                  {t('report.evidenceTitle')}
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink">
+                  {winner.explanation}
+                </p>
+              </div>
+              <PlatformBenefitsList name={winner.name} benefits={insights.platformBenefits} />
+              <ProductSummaryCard analysis={report} />
+            </div>
+          )}
 
-      <OptimizedListingPanel listing={analysis.optimizedListing} />
+          {section === 'pricing' && (
+            <PriceRecommendationPanel platform={winner} currentPrice={report.currentPrice} />
+          )}
 
-      <div className="flex flex-wrap gap-3 pt-2">
-        <Link to="/analyze">
-          <Button>Analyze another product</Button>
-        </Link>
-        <Link to="/dashboard">
-          <Button variant="secondary">View all analyses</Button>
-        </Link>
+          {section === 'comparison' && (
+            <div className="space-y-10">
+              <ComparisonEvidence
+                platforms={report.platforms}
+                recommendedPlatform={report.recommendedPlatform}
+                currentPrice={report.currentPrice}
+              />
+              <PlatformComparison
+                platforms={report.platforms}
+                recommendedPlatform={report.recommendedPlatform}
+                currentPrice={report.currentPrice}
+              />
+              <PlatformCharts platforms={report.platforms} />
+              <PlatformProfiles platforms={report.platforms.map((platform) => platform.id)} />
+            </div>
+          )}
+
+          {section === 'competitors' && (
+            <CompetitorAnalysisPanel
+              competitors={insights.competitors}
+              platformName={
+                report.platforms.find((platform) => platform.id === insights.competitorPlatform)?.name ??
+                winner.name
+              }
+            />
+          )}
+
+          {section === 'reviews' && (
+            <ReviewDemandPanel
+              sentiment={insights.reviewSentiment}
+              demand={insights.regionalDemand}
+            />
+          )}
+
+          {section === 'listing' && (
+            <OptimizedListingPanel
+              listing={report.optimizedListing}
+              complaints={insights.reviewSentiment.available ? insights.reviewSentiment.topComplaints : []}
+            />
+          )}
+
+          <div className="mt-10 flex flex-wrap gap-3 border-t border-rule pt-6">
+            <Link to="/analyze">
+              <Button>{t('report.another')}</Button>
+            </Link>
+            <Link to="/dashboard">
+              <Button variant="secondary">{t('report.all')}</Button>
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-/** The seller's own inputs, restated so the report is self-contained. */
 function ProductSummaryCard({
   analysis,
 }: {
   analysis: NonNullable<ReturnType<typeof useProduct>['data']>;
 }) {
+  const { t } = useTranslation();
+
   return (
-    <aside className="card overflow-hidden" aria-label="Product summary">
+    <aside className="border-t border-rule pt-6" aria-label={t('report.summary')}>
       {analysis.imageUrl ? (
         <img
           src={analysis.imageUrl}
           alt={analysis.title}
-          className="h-48 w-full bg-slate-50 object-contain"
+          className="h-40 w-full bg-paper object-contain"
         />
       ) : (
-        <div className="flex h-48 items-center justify-center bg-slate-50 text-slate-300">
-          <svg
-            className="h-12 w-12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <circle cx="8.5" cy="9.5" r="1.5" />
-            <path d="M21 15l-5-5L5 20" />
-          </svg>
-          <span className="sr-only">No product image provided</span>
+        <div className="flex h-24 items-end border-b border-rule px-1 py-3 text-ink-muted">
+          <span className="sr-only">{t('report.noImage')}</span>
         </div>
       )}
 
-      <div className="space-y-4 p-6">
+      <div className="space-y-4 pt-4">
         <div>
-          <h2 className="text-base font-bold text-slate-900">{analysis.title}</h2>
-          <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-slate-600">
+          <h2 className="font-display text-base font-medium text-ink">{analysis.title}</h2>
+          <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-ink-muted">
             {analysis.description}
           </p>
         </div>
 
-        <dl className="space-y-2 border-t border-slate-100 pt-4 text-sm">
+        <dl className="space-y-2 border-t border-rule pt-4 text-sm">
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Category</dt>
-            <dd className="text-right font-semibold text-slate-900">
-              {CATEGORY_LABELS[analysis.category] ?? analysis.category}
+            <dt className="text-ink-muted">{t('report.category')}</dt>
+            <dd className="text-right font-medium text-ink">
+              {t('categories.' + analysis.category, { defaultValue: analysis.category })}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Manufacturing cost</dt>
-            <dd className="tabular-nums font-semibold text-slate-900">
+            <dt className="text-ink-muted">{t('report.cost')}</dt>
+            <dd className="figure font-medium text-ink">
               {formatCurrency(analysis.manufacturingCost)}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Current price</dt>
-            <dd className="tabular-nums font-semibold text-slate-900">
+            <dt className="text-ink-muted">{t('report.current')}</dt>
+            <dd className="figure font-medium text-ink">
               {formatCurrency(analysis.currentPrice)}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Marketplaces compared</dt>
-            <dd className="font-semibold text-slate-900">{analysis.platforms.length}</dd>
+            <dt className="text-ink-muted">{t('report.compared')}</dt>
+            <dd className="figure font-medium text-ink">{analysis.platforms.length}</dd>
           </div>
         </dl>
       </div>

@@ -24,7 +24,7 @@ export function FormField({ id, label, hint, error, children }: FormFieldProps) 
       </label>
 
       {hint && (
-        <p id={hintId} className="mb-1.5 text-xs text-slate-500">
+        <p id={hintId} className="mb-1.5 text-xs text-ink-muted">
           {hint}
         </p>
       )}

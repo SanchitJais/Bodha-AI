@@ -5,8 +5,10 @@
  * seller sees the same wording whichever side rejects the input.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
+import { resolveAppLanguage } from '../i18n';
 import type { AnalyzeRequest, CategoryId, PlatformId } from '../types';
 
 export interface AnalyzeFormValues {
@@ -31,67 +33,73 @@ export const INITIAL_VALUES: AnalyzeFormValues = {
   imageUrl: null,
 };
 
-/** Parse a money field, returning NaN for anything non-numeric. */
 function parseMoney(value: string): number {
   return value.trim() === '' ? Number.NaN : Number(value);
 }
 
-export function validate(values: AnalyzeFormValues): AnalyzeFormErrors {
+export function validate(
+  values: AnalyzeFormValues,
+  t: (key: string) => string,
+): AnalyzeFormErrors {
   const errors: AnalyzeFormErrors = {};
 
   if (values.title.trim().length < 3) {
-    errors.title = 'Title must be at least 3 characters';
+    errors.title = t('analyze.errors.titleMin');
   }
   if (values.description.trim().length < 10) {
-    errors.description = 'Description must be at least 10 characters';
+    errors.description = t('analyze.errors.descMin');
   }
   if (!values.category) {
-    errors.category = 'Choose a category';
+    errors.category = t('analyze.errors.category');
   }
 
   const cost = parseMoney(values.manufacturingCost);
   const price = parseMoney(values.currentPrice);
 
   if (Number.isNaN(cost)) {
-    errors.manufacturingCost = 'Enter your manufacturing cost';
+    errors.manufacturingCost = t('analyze.errors.costRequired');
   } else if (cost <= 0) {
-    errors.manufacturingCost = 'Manufacturing cost must be greater than 0';
+    errors.manufacturingCost = t('analyze.errors.costPositive');
   }
 
   if (Number.isNaN(price)) {
-    errors.currentPrice = 'Enter your current selling price';
+    errors.currentPrice = t('analyze.errors.priceRequired');
   } else if (price <= 0) {
-    errors.currentPrice = 'Current selling price must be greater than 0';
+    errors.currentPrice = t('analyze.errors.pricePositive');
   }
 
-  // Only compare once both numbers are individually valid.
   if (!errors.manufacturingCost && !errors.currentPrice && cost >= price) {
-    errors.manufacturingCost = 'Manufacturing cost must be lower than the current selling price';
+    errors.manufacturingCost = t('analyze.errors.costBelowPrice');
   }
 
   if (values.platforms.length === 0) {
-    errors.platforms = 'Select at least one marketplace';
+    errors.platforms = t('analyze.errors.platforms');
   }
 
   return errors;
 }
 
 export function useAnalyzeForm() {
+  const { t, i18n } = useTranslation();
   const [values, setValues] = useState<AnalyzeFormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<AnalyzeFormErrors>({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
-  /** Update one field, clearing its error once the seller starts fixing it. */
+  useEffect(() => {
+    if (hasSubmitted) setErrors(validate(values, t));
+    // Re-run labels when the site language changes after a failed submit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.language, t]);
+
   const setValue = useCallback(
     <K extends keyof AnalyzeFormValues>(key: K, value: AnalyzeFormValues[K]) => {
       setValues((current) => {
         const next = { ...current, [key]: value };
-        // After a failed submit, re-validate live so errors clear as they type.
-        if (hasSubmitted) setErrors(validate(next));
+        if (hasSubmitted) setErrors(validate(next, t));
         return next;
       });
     },
-    [hasSubmitted],
+    [hasSubmitted, t],
   );
 
   const togglePlatform = useCallback(
@@ -102,17 +110,16 @@ export function useAnalyzeForm() {
           : [...current.platforms, platform];
 
         const next = { ...current, platforms };
-        if (hasSubmitted) setErrors(validate(next));
+        if (hasSubmitted) setErrors(validate(next, t));
         return next;
       });
     },
-    [hasSubmitted],
+    [hasSubmitted, t],
   );
 
-  /** Validate everything; returns the API payload when the form is valid. */
   const submit = useCallback((): AnalyzeRequest | null => {
     setHasSubmitted(true);
-    const nextErrors = validate(values);
+    const nextErrors = validate(values, t);
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) return null;
@@ -125,8 +132,9 @@ export function useAnalyzeForm() {
       manufacturingCost: Number(values.manufacturingCost),
       currentPrice: Number(values.currentPrice),
       platforms: values.platforms,
+      language: resolveAppLanguage(i18n.resolvedLanguage ?? i18n.language),
     };
-  }, [values]);
+  }, [i18n.language, i18n.resolvedLanguage, t, values]);
 
   const reset = useCallback(() => {
     setValues(INITIAL_VALUES);

@@ -3,7 +3,12 @@
  * shape: { error: { code, message, details? } }.
  */
 
-export type ErrorCode = 'VALIDATION_ERROR' | 'NOT_FOUND' | 'INTERNAL_ERROR';
+export type ErrorCode =
+  | 'VALIDATION_ERROR'
+  | 'NOT_FOUND'
+  | 'INTERNAL_ERROR'
+  | 'UNAUTHORIZED'
+  | 'PAYMENT_REQUIRED';
 
 export interface ErrorBody {
   error: {
@@ -32,6 +37,14 @@ export class HttpError extends Error {
 
   static notFound(message: string): HttpError {
     return new HttpError(404, 'NOT_FOUND', message);
+  }
+
+  static unauthorized(message = 'Please sign in to continue'): HttpError {
+    return new HttpError(401, 'UNAUTHORIZED', message);
+  }
+
+  static paymentRequired(message: string, details?: unknown): HttpError {
+    return new HttpError(402, 'PAYMENT_REQUIRED', message, details);
   }
 
   toBody(): ErrorBody {

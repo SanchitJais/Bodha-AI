@@ -1,4 +1,12 @@
 
+> bodha-ai@1.0.0 test
+> npm --prefix backend test
+
+
+> bodha-ai-backend@1.0.0 test
+> vitest run
+
+
  RUN  v2.1.9 D:/Projects/I Project/backend
 
  ✓ src/tests/listingOptimizer.test.ts > listingOptimizer > runs the documented rule-based stub while no LLM key is configured
@@ -12,7 +20,7 @@
  ✓ src/tests/pricingEngine.test.ts > Section 2.4 - required worked examples > case 3: never recommends below break-even when the market price is too low
  ✓ src/tests/pricingEngine.test.ts > loss prevention holds across every category and platform > never returns a recommended price below break-even for any combination
  ✓ src/tests/pricingEngine.test.ts > formula helpers > median handles odd and even length inputs
- ✓ src/tests/pricingEngine.test.ts > formula helpers > grosses cost AND shipping up together by the commission
+ ✓ src/tests/pricingEngine.test.ts > formula helpers > grosses the manufacturing cost up by the commission, then adds shipping
  ✓ src/tests/pricingEngine.test.ts > formula helpers > computes profit net of commission, shipping and cost
  ✓ src/tests/pricingEngine.test.ts > formula helpers > weights fit score 40/30/30 across profit, competition and demand
  ✓ src/tests/pricingEngine.test.ts > formula helpers > normalises profit against the target margin and clamps to 0-100
@@ -30,6 +38,6 @@
 
  Test Files  3 passed (3)
       Tests  26 passed (26)
-   Start at  14:00:02
-   Duration  600ms (transform 128ms, setup 0ms, collect 221ms, tests 222ms, environment 0ms, prepare 320ms)
+   Start at  12:04:20
+   Duration  565ms (transform 123ms, setup 0ms, collect 207ms, tests 214ms, environment 0ms, prepare 302ms)
 

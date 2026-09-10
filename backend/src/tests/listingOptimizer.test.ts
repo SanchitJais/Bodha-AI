@@ -50,6 +50,13 @@ describe('listingOptimizer', () => {
     expect(listing.keywords.length).toBeGreaterThanOrEqual(3);
   });
 
+  it('writes Hindi benefit copy when language is hi', async () => {
+    const listing = await optimizeListing({ ...input, language: 'hi' });
+    expect(listing.description).toMatch(/रोज़मर्रा|श्रेणी|खरीदारों/);
+    expect(listing.description).toContain('Amazon');
+    expect(listing.description).toContain('999');
+  });
+
   it('is pure - identical input always yields identical output', async () => {
     const first = await optimizeListing(input);
     const second = await optimizeListing(input);

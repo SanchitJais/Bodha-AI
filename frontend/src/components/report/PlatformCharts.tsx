@@ -10,6 +10,8 @@ import {
 } from 'recharts';
 import type { TooltipProps } from 'recharts';
 
+import { useTranslation } from 'react-i18next';
+
 import type { PlatformRecommendation } from '../../types';
 import { formatCurrency, PLATFORM_COLORS } from '../../utils/format';
 
@@ -25,8 +27,8 @@ interface ChartDatum {
   color: string;
 }
 
-const AXIS_TICK = { fill: '#64748b', fontSize: 12, fontWeight: 600 };
-const GRID_LINE = '#e2e8f0';
+const AXIS_TICK = { fill: '#4a4f4a', fontSize: 12, fontWeight: 500 };
+const GRID_LINE = '#cfc8ba';
 
 /**
  * Profit is anchored at zero so gains and losses read against a common
@@ -48,7 +50,18 @@ function profitDomain(profits: number[]): [number, number] {
  * visual comparison between the two.
  */
 export function PlatformCharts({ platforms }: PlatformChartsProps) {
-  const data: ChartDatum[] = platforms.map((platform) => ({
+  const { t } = useTranslation();
+  const available = platforms.filter((platform) => !platform.unavailable);
+
+  if (available.length === 0) {
+    return (
+      <p className="border-t border-rule pt-4 text-sm text-ink-muted">
+        {t('report.chartsNeed')}
+      </p>
+    );
+  }
+
+  const data: ChartDatum[] = available.map((platform) => ({
     name: platform.name,
     id: platform.id,
     fitScore: platform.fitScore,
@@ -58,10 +71,7 @@ export function PlatformCharts({ platforms }: PlatformChartsProps) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <ChartCard
-        title="Marketplace fit score"
-        caption="Weighted 40% profit, 30% low competition, 30% demand. Higher is better."
-      >
+      <ChartCard title={t('report.fitChart')} caption={t('report.fitCaption')}>
         <HorizontalBars
           data={[...data].sort((a, b) => b.fitScore - a.fitScore)}
           dataKey="fitScore"
@@ -70,10 +80,7 @@ export function PlatformCharts({ platforms }: PlatformChartsProps) {
         />
       </ChartCard>
 
-      <ChartCard
-        title="Net profit per unit"
-        caption="What you keep after commission, shipping and manufacturing cost."
-      >
+      <ChartCard title={t('report.profitChart')} caption={t('report.profitCaption')}>
         <HorizontalBars
           data={[...data].sort((a, b) => b.estimatedProfit - a.estimatedProfit)}
           dataKey="estimatedProfit"
@@ -95,10 +102,10 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <figure className="card p-6">
+    <figure className="border-t border-rule pt-5">
       <figcaption className="mb-5">
-        <h3 className="text-base font-bold text-slate-900">{title}</h3>
-        <p className="mt-1 text-ambient text-slate-500">{caption}</p>
+        <h3 className="font-display text-base font-medium text-ink-muted">{title}</h3>
+        <p className="mt-1 text-ambient text-ink-muted">{caption}</p>
       </figcaption>
       {children}
     </figure>
@@ -132,20 +139,20 @@ function HorizontalBars({ data, dataKey, domain, formatValue }: HorizontalBarsPr
             tick={AXIS_TICK}
           />
           <Tooltip
-            cursor={{ fill: 'rgba(99, 102, 241, 0.06)' }}
+            cursor={{ fill: 'rgba(13, 107, 76, 0.06)' }}
             content={<ChartTooltip formatValue={formatValue} dataKey={dataKey} />}
           />
-          <Bar dataKey={dataKey} radius={[0, 4, 4, 0]} isAnimationActive={false}>
+          <Bar dataKey={dataKey} radius={0} isAnimationActive={false}>
             {data.map((entry) => (
               // A 2px surface ring keeps adjacent fills from touching.
-              <Cell key={entry.id} fill={entry.color} stroke="#ffffff" strokeWidth={2} />
+              <Cell key={entry.id} fill={entry.color} stroke="#f3efe6" strokeWidth={2} />
             ))}
             <LabelList
               dataKey={dataKey}
               position="right"
               offset={10}
               formatter={(value: number) => formatValue(value)}
-              style={{ fill: '#334155', fontSize: 12, fontWeight: 700 }}
+              style={{ fill: '#141814', fontSize: 12, fontWeight: 500, fontFamily: 'IBM Plex Mono, ui-monospace, monospace' }}
             />
           </Bar>
         </BarChart>
@@ -160,23 +167,24 @@ interface ChartTooltipProps extends TooltipProps<number, string> {
 }
 
 function ChartTooltip({ active, payload, formatValue, dataKey }: ChartTooltipProps) {
+  const { t } = useTranslation();
   if (!active || !payload?.length) return null;
 
   const datum = payload[0].payload as ChartDatum;
-  const label = dataKey === 'fitScore' ? 'Fit score' : 'Net profit / unit';
+  const label = dataKey === 'fitScore' ? t('report.fitScore') : t('report.netProfit');
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lifted">
-      <p className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+    <div className="border border-rule bg-[#faf8f3] px-3 py-2">
+      <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
         <span
-          className="h-2.5 w-2.5 rounded-full"
+          className="h-2.5 w-2.5"
           style={{ backgroundColor: datum.color }}
           aria-hidden="true"
         />
         {datum.name}
       </p>
-      <p className="mt-0.5 text-xs text-slate-600">
-        {label}: <span className="font-semibold text-slate-900">{formatValue(datum[dataKey])}</span>
+      <p className="mt-0.5 text-xs text-ink-muted">
+        {label}: <span className="figure font-medium text-ink">{formatValue(datum[dataKey])}</span>
       </p>
     </div>
   );

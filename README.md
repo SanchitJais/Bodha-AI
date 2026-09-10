@@ -6,11 +6,7 @@ Bodha AI answers three questions about a product in one pass — **where** to se
 **what** to charge, and **how** to write the listing — and it will never recommend a
 price that loses the seller money.
 
-📋 **[View the build verification](https://claude.ai/code/artifact/c8dc92a7-b77c-487c-a0b7-d4493ea2f38d)**
-— every screen as it renders, the three required pricing cases, and the full test
-and browser-walkthrough results (screenshots aren't committed to the repo to keep
-it lean; see [`docs/screenshots/`](docs/screenshots/) locally after running the
-walkthrough yourself).
+![Recommendation report](docs/screenshots/04-report-full.png)
 
 ---
 
@@ -19,6 +15,9 @@ walkthrough yourself).
 ```bash
 # 1. Install both packages
 npm run install:all
+npx --prefix backend playwright install chromium
+
+# 2. Copy the env templates (defaults work as-is for local development)
 
 # 2. Copy the env templates (defaults work as-is for local development)
 cp backend/.env.example backend/.env
@@ -35,7 +34,7 @@ Prefer two terminals? `npm run dev:backend` and `npm run dev:frontend`.
 | Command | What it does |
 |---|---|
 | `npm run dev` | Runs API + web app together |
-| `npm test` | Runs the backend unit + API test suites (26 tests) |
+| `npm test` | Runs the backend unit + API test suites (live scrapes skipped) |
 | `npm run lint` | ESLint across both packages |
 | `npm run format:check` | Prettier check across both packages |
 | `npm run build` | Type-checks and builds both packages for production |
@@ -53,13 +52,17 @@ bodha-ai/
 │   └── src/
 │       ├── routes/              HTTP layer only
 │       ├── services/
-│       │   ├── pricingEngine.ts     ← pure business logic, unit tested
-│       │   ├── listingOptimizer.ts  ← pure listing rewriter, unit tested
-│       │   └── analysisService.ts   orchestration (IDs, clock, persistence)
+│       │   ├── pricingEngine.ts            pure business logic, unit tested
+│       │   ├── listingOptimizer.ts         pure listing rewriter, unit tested
+│       │   ├── snapshotFromListings.ts     demand/competition heuristics
+│       │   ├── marketplaceDataProvider.ts  cache-first then Playwright scrape
+│       │   ├── cacheService.ts             SQLite listing cache
+│       │   ├── analysisService.ts          IDs, clock, persistence
+│       │   └── scraper/                    Amazon / Flipkart / Snapdeal adapters
 │       ├── models/              SQLite schema + repository (all SQL lives here)
-│       ├── data/                mockMarketplaceData.ts — the seeded market
+│       ├── data/                platformConfig.ts (fees) + categories.ts
 │       ├── utils/               zod validation + structured HTTP errors
-│       └── tests/               Vitest suites
+│       └── tests/               Vitest suites (live scrape tests skipped by default)
 └── frontend/                    React + Vite + TypeScript + Tailwind
     └── src/
         ├── pages/               Home, Analyze, Report, Dashboard, NotFound
@@ -71,8 +74,9 @@ bodha-ai/
 
 The design rule throughout: **`pricingEngine` and `listingOptimizer` are pure
 functions.** They take data and return data — no HTTP, no database, no clock, no
-UI. Everything impure (IDs, timestamps, persistence) is confined to
-`analysisService`. That is what makes the business rules directly unit-testable.
+UI. Comparable listings come from `marketplaceDataProvider` (live scrape or
+cache). Everything impure (IDs, timestamps, persistence, Playwright) stays out
+of the pricing engine. That is what makes the business rules unit-testable.
 
 ### Request flow
 
@@ -81,7 +85,12 @@ Analyze form → services/api.ts → POST /api/products/analyze
                                       ↓
                              zod validation (400 on failure)
                                       ↓
-                    pricingEngine.analyzePricing()  ← pure
+              marketplaceDataProvider.getMarketSnapshots()
+                 cache HIT → cached listings
+                 else Playwright scrape (Amazon / Flipkart / Snapdeal)
+                 scrape fail → stale cache, or "unavailable"
+                                      ↓
+                    pricingEngine.analyzePricing(snapshots)  ← pure
                                       ↓
                     listingOptimizer.optimizeListing()  ← pure
                                       ↓
@@ -99,7 +108,7 @@ For each selected marketplace:
 | Step | Formula |
 |---|---|
 | Market price | `median(comparable listing prices)` for that category × platform |
-| **Break-even floor** | `(manufacturingCost + avgShippingFee) / (1 - feePercent)` |
+| **Break-even floor** | `manufacturingCost / (1 - feePercent) + avgShippingFee` |
 | Recommended price | `max(marketPrice, breakEvenPrice)` — clamped, never below the floor |
 | Estimated profit | `price - price × feePercent - avgShippingFee - manufacturingCost` |
 | Fit score (0–100) | `0.4 × normalize(profit) + 0.3 × (100 - competition) + 0.3 × demand` |
@@ -121,14 +130,14 @@ does not follow the market down. It floors the recommendation at break-even, set
 `lossRiskAvoided: true`, and says so in the UI with a "Loss protection applied"
 notice explaining why.
 
-> **Why shipping is grossed up too.** Shipping is a real out-of-pocket cost the
-> seller fronts, same as manufacturing — so it is grossed up by the commission
-> alongside cost, not added on afterward. That makes the floor a *true*
-> zero-profit price: selling at exactly `breakEvenPrice` always yields exactly
-> `estimatedProfit === 0` (asserted directly in the tests), not a small residual
-> loss. For cost ₹400 / Amazon's 18% fee / ₹60 shipping, the floor is
-> `(400 + 60) / (1 - 0.18) = ₹560.98` — of which ₹100.98 is commission, leaving
-> exactly ₹460 to cover the ₹400 cost and ₹60 shipping.
+> **A note on the break-even formula.** As specified, the flat shipping fee is added
+> *after* the cost is grossed up for commission, rather than being grossed up itself.
+> At exactly the floor this leaves `feePercent × avgShippingFee` uncovered (₹10.80 on
+> Amazon at a ₹60 shipping fee). The guarantee this floor backs — *manufacturing cost
+> plus platform fees is always recovered* — holds in full, and the residual is
+> asserted explicitly in the tests. `zeroProfitPrice()` exposes the stricter
+> `(cost + shipping) / (1 - fee)` figure for reference. See the `KNOWN RESIDUAL` note
+> on `calculateBreakEvenPrice`.
 
 ---
 
@@ -136,17 +145,41 @@ notice explaining why.
 
 | Piece | Status |
 |---|---|
-| Marketplace data (prices, demand, competition, fees) | **Mocked.** Hand-authored in [`mockMarketplaceData.ts`](backend/src/data/mockMarketplaceData.ts). No marketplace API is ever called and nothing is scraped. |
-| Pricing engine | **Real.** Every number in the report is computed from your inputs by the formulas above. |
+| Marketplace comparable prices, demand, competition | **Live scrape + cache.** Playwright reads Amazon.in, Flipkart and Snapdeal search results at query time. Fresh snapshots are reused for `CACHE_TTL_HOURS` (default 3). If a scrape is blocked or times out, the last cached snapshot is used and the UI shows a "last updated" badge. Alibaba is not scraped (B2B, out of scope) and appears as "Data temporarily unavailable". |
+| Pricing engine | **Real.** Every number in the report is computed from your inputs plus the live/cached listings by the formulas above. |
 | Listing optimizer | **Rule-based stub.** Deterministic templates, not a live LLM — see below. |
-| Persistence | **Real.** SQLite on disk; history survives a server restart. |
+| Persistence | **Real.** SQLite on disk; history and the listing cache survive a server restart. |
 | Authentication | **Mocked.** One fixed `demo-seller` session; login is out of scope. |
 | Payments | Not implemented — out of scope. |
 
 Commission rates sit inside each marketplace's real-world published band (Amazon
-15–20%, Flipkart 12–18%, Snapdeal 8–12%, Alibaba 3–6%), and Alibaba's prices are
-lower because they are quoted per unit at volume — surfaced in the UI as a B2B note.
-The figures are plausible and internally consistent, not scraped facts.
+15–20%, Flipkart 12–18%, Snapdeal 8–12%, Alibaba 3–6%). Those fees are commercial
+config, not scraped — search pages do not publish the seller commission.
+
+**demandIndex** and **competitionIndex** are heuristics derived from scraped
+fields, not scores the platforms publish:
+
+- `demandIndex = 100 × log10(1 + avg reviewCount) / log10(1 + 10000)`
+- `competitionIndex = 100 × listingCount / 20` (page-1 density, cap 20)
+
+See `backend/src/services/snapshotFromListings.ts`.
+
+### Live scrape behaviour
+
+- One shared headless Chromium; a fresh browser context per request.
+- One-at-a-time queue per marketplace (never concurrent Amazon scrapes).
+- CAPTCHA / bot-check pages are detected and fall back immediately — they are not bypassed.
+- `GET /api/health` reports cache size and TTL. `DELETE /api/cache` clears the listing cache so the next analyze is forced live (useful for demos).
+- Selectors were verified against live search pages on 2026-09-09 (`backend/scripts/probe-marketplaces.mjs`). Re-run that script if a marketplace layout changes.
+- After `npm install`, run `npx playwright install chromium` once.
+
+Live scrape integration tests are skipped in `npm test`. To run them (sparingly):
+
+```bash
+cd backend
+# PowerShell
+$env:LIVE_SCRAPE=1; npm run test:live-scrape
+```
 
 ### Swapping the listing optimizer for a real LLM
 
@@ -197,7 +230,7 @@ Base URL `http://localhost:4000`. All errors return
   "platforms": [
     {
       "name": "Amazon", "feePercent": 0.18, "marketPriceRange": [899, 1199],
-      "recommendedPrice": 999, "breakEvenPrice": 560.98,
+      "recommendedPrice": 999, "breakEvenPrice": 547.8,
       "estimatedProfit": 359.18, "profitMargin": 0.3595,
       "competition": "High", "demand": "High", "fitScore": 74.8,
       "priceAction": "increase", "explanation": "Similar products on Amazon sell…",
@@ -218,7 +251,8 @@ The full stored analysis, same shape as the POST response.
 
 ### Supporting endpoints
 
-- `GET /api/health` — status + which listing optimizer is active
+- `GET /api/health` — status, listing optimizer, cache size and TTL
+- `DELETE /api/cache` — drop cached listings so the next analyze is forced live
 - `GET /api/meta` — categories and platforms that populate the form controls
 
 ---
@@ -229,18 +263,18 @@ The full stored analysis, same shape as the POST response.
 npm test
 ```
 
-**26 tests, all passing** — full output in [`docs/test-output.txt`](docs/test-output.txt).
+**35 unit/API tests passing** (plus 3 live-scrape tests skipped unless `LIVE_SCRAPE=1`).
 
 The three cases required by the brief are grouped under
 `Section 2.4 - required worked examples`:
 
 1. **Increase** — cost ₹400, listed at ₹800, market ≈ ₹1000 → recommends **₹999**
-   with `priceAction: "increase"`, break-even ₹560.98, profit ₹359.18, and an
+   with `priceAction: "increase"`, break-even ₹547.80, profit ₹359.18, and an
    explanation citing high demand and competitors pricing higher.
 2. **Decrease** — cost ₹400, listed at ₹1400 → `"decrease"`, with the final price
    still more than 1.5× the break-even floor.
 3. **Loss prevention** — cost ₹900 on Toys/Alibaba, where the ₹300 market median is
-   far below the ₹968.59 floor → `recommendedPrice === breakEvenPrice` and
+   far below the ₹967.41 floor → `recommendedPrice === breakEvenPrice` and
    `lossRiskAvoided === true`.
 
 Plus an exhaustive sweep asserting that across **every** category × platform × cost
@@ -252,19 +286,22 @@ the response shape, validation failures, the 404 path, and persistence round-tri
 ## Verified in the browser
 
 A scripted Playwright walkthrough drives a real Chrome through the whole product —
-**36/36 checks pass**, with zero console errors, covering the landing page, form
-validation, the recommendation report, dashboard/history, the loss-protection path,
-and mobile layout at 390×844. Full screenshot gallery and results:
-**[build verification](https://claude.ai/code/artifact/c8dc92a7-b77c-487c-a0b7-d4493ea2f38d)**.
+**35/35 checks pass**, with zero console errors. Screenshots in
+[`docs/screenshots/`](docs/screenshots):
 
-Screenshots aren't committed to keep the repo lean; regenerate them yourself with
-the app running by pointing a Playwright script at `localhost:5173` (see the
-walkthrough steps in the verification report above), or find them at
-`docs/screenshots/` after doing so.
+| Screen | |
+|---|---|
+| Landing page | [`01-home.png`](docs/screenshots/01-home.png) |
+| Form validation | [`02-analyze-validation.png`](docs/screenshots/02-analyze-validation.png) |
+| Analyze form, filled | [`03-analyze-filled.png`](docs/screenshots/03-analyze-filled.png) |
+| **Recommendation report** | [`04-report-full.png`](docs/screenshots/04-report-full.png) |
+| Dashboard / history | [`07-dashboard.png`](docs/screenshots/07-dashboard.png) |
+| Loss protection | [`09-report-loss-protection.png`](docs/screenshots/09-report-loss-protection.png) |
+| Mobile (390×844) | [`10-mobile-home.png`](docs/screenshots/10-mobile-home.png), [`11-mobile-report.png`](docs/screenshots/11-mobile-report.png) |
 
 The walkthrough asserts the real numbers on the rendered page (₹999 recommendation,
-₹560.98 break-even, ₹359.18 profit, 18.0% / 4.5% fees), that history persists and
-reopens correctly, that loss protection fires and floors the price at ₹968.59, and
+₹547.80 break-even, ₹359.18 profit, 18.0% / 4.5% fees), that history persists and
+reopens correctly, that loss protection fires and floors the price at ₹967.41, and
 that neither the home page nor the report scrolls horizontally on a phone.
 
 ---

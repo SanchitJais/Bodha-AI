@@ -40,7 +40,7 @@
     "detail": ""
   },
   {
-    "name": "shows break-even 560.98",
+    "name": "shows break-even 547.80",
     "pass": true,
     "detail": "break-even marker"
   },
@@ -137,7 +137,7 @@
   {
     "name": "reopens the same analysis",
     "pass": true,
-    "detail": "http://127.0.0.1:5173/report/e6a7b33f-58f9-4226-b878-b53d5620d85e"
+    "detail": "http://127.0.0.1:5173/report/fa2ecf9b-acbf-4bf8-a1b9-566f581e77cd"
   },
   {
     "name": "reopened report still recommends Amazon at 999",
@@ -155,14 +155,9 @@
     "detail": ""
   },
   {
-    "name": "floors the price at break-even 968.59",
+    "name": "floors the price at break-even 967.41",
     "pass": true,
     "detail": "break-even floor"
-  },
-  {
-    "name": "profit at the floor is exactly zero",
-    "pass": true,
-    "detail": "zero-profit floor"
   },
   {
     "name": "home does not scroll horizontally on mobile",

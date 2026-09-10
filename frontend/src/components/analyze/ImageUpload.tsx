@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useToast } from '../../hooks/useToast';
 import { cx } from '../../utils/format';
@@ -53,6 +54,7 @@ async function toDownscaledDataUrl(file: File): Promise<string> {
 
 /** Drag-and-drop or click-to-browse product image field with a live preview. */
 export function ImageUpload({ value, onChange }: ImageUploadProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -62,11 +64,11 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showToast('Please choose an image file (JPG, PNG or WebP).', 'error');
+      showToast(t('image.notImage'), 'error');
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
-      showToast('That image is larger than 8 MB. Try a smaller one.', 'error');
+      showToast(t('image.tooBig'), 'error');
       return;
     }
 
@@ -88,11 +90,11 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
   return (
     <div>
       <span className="label-text" id="product-image-label">
-        Product image
+        {t('image.label')}
       </span>
 
       {value ? (
-        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+        <div className="relative overflow-hidden border border-rule bg-paper">
           <img
             src={value}
             alt="Preview of the product you are analysing"
@@ -101,7 +103,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
           <button
             type="button"
             onClick={clearImage}
-            className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-white hover:text-danger-600"
+            className="absolute right-3 top-3 inline-flex items-center gap-1.5 bg-paper/95 px-2.5 py-1.5 text-xs font-medium text-ink ring-1 ring-rule transition hover:text-danger-600"
           >
             <svg
               className="h-3.5 w-3.5"
@@ -114,11 +116,12 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
             >
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
-            Remove
+            {t('image.remove')}
           </button>
         </div>
       ) : (
         <div
+          data-dropzone="product-image"
           role="button"
           tabIndex={0}
           aria-labelledby="product-image-label"
@@ -141,13 +144,13 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
             void handleFile(event.dataTransfer.files[0]);
           }}
           className={cx(
-            'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center transition',
+            'flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed px-6 py-10 text-center transition',
             isDragging
-              ? 'border-brand-500 bg-brand-50'
-              : 'border-slate-300 bg-slate-50/60 hover:border-brand-400 hover:bg-brand-50/40',
+              ? 'border-brand-600 bg-brand-50'
+              : 'border-rule bg-paper hover:border-ink/40',
           )}
         >
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-200">
+          <div className="flex h-11 w-11 items-center justify-center border border-rule bg-[#faf8f3] text-brand-700">
             {isProcessing ? (
               <svg
                 className="h-5 w-5 animate-spin"
@@ -185,11 +188,11 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
             )}
           </div>
 
-          <p className="text-sm font-semibold text-slate-700">
-            {isProcessing ? 'Processing image…' : 'Drop an image here, or click to browse'}
+          <p className="text-sm font-medium text-ink">
+            {isProcessing ? t('image.processing') : t('image.drop')}
           </p>
-          <p id="product-image-hint" className="text-xs text-slate-500">
-            JPG, PNG or WebP up to 8 MB. Optional.
+          <p id="product-image-hint" className="text-xs text-ink-muted">
+            {t('image.hint')}
           </p>
         </div>
       )}

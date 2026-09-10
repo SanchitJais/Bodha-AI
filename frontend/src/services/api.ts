@@ -8,8 +8,13 @@ import type {
   AnalysisResponse,
   AnalyzeRequest,
   ApiErrorBody,
+  AuthUser,
+  AutoInsightResponse,
+  BillingOrder,
+  BillingPlan,
   HistoryItem,
   MetaResponse,
+  VoiceQueryResponse,
 } from '../types';
 
 /**
@@ -38,6 +43,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   try {
     response = await fetch(API_BASE_URL + path, {
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       ...init,
     });
@@ -66,6 +72,36 @@ export const api = {
     });
   },
 
+  inferFromPhoto(payload: {
+    imageUrl: string;
+    language?: 'en' | 'hi' | 'ta';
+  }): Promise<AutoInsightResponse> {
+    return request<AutoInsightResponse>('/api/products/insight', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async downloadReportPdf(productId: string, language: 'en' | 'hi' | 'ta'): Promise<void> {
+    const response = await fetch(
+      API_BASE_URL + '/api/products/' + encodeURIComponent(productId) + '/pdf?lang=' + language,
+      { credentials: 'include' },
+    );
+    if (!response.ok) {
+      throw new ApiError(response.status, null, 'Could not download the PDF report.');
+    }
+    const blob = await response.blob();
+    const header = response.headers.get('Content-Disposition') ?? '';
+    const match = header.match(/filename="([^"]+)"/);
+    const filename = match?.[1] ?? 'BodhaAI_Report.pdf';
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+
   getHistory(): Promise<HistoryItem[]> {
     return request<HistoryItem[]>('/api/products/history');
   },
@@ -76,5 +112,56 @@ export const api = {
 
   getMeta(): Promise<MetaResponse> {
     return request<MetaResponse>('/api/meta');
+  },
+
+  askVoice(payload: {
+    text: string;
+    language: 'en' | 'hi' | 'ta' | 'hinglish';
+    context?: { productId?: string; page?: string; currentReport?: unknown };
+  }): Promise<VoiceQueryResponse> {
+    return request<VoiceQueryResponse>('/api/voice/query', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  signup(payload: { email: string; password: string; name: string }): Promise<{ user: AuthUser }> {
+    return request('/api/auth/signup', { method: 'POST', body: JSON.stringify(payload) });
+  },
+
+  login(payload: { email: string; password: string }): Promise<{ user: AuthUser }> {
+    return request('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) });
+  },
+
+  logout(): Promise<void> {
+    return request('/api/auth/logout', { method: 'POST' });
+  },
+
+  me(): Promise<{ user: AuthUser | null }> {
+    return request('/api/auth/me');
+  },
+
+  completeOnboarding(payload: {
+    storeName: string;
+    storeCity: string;
+    storeCategory: string;
+  }): Promise<{ user: AuthUser }> {
+    return request('/api/auth/onboarding', { method: 'POST', body: JSON.stringify(payload) });
+  },
+
+  billingPlan(): Promise<BillingPlan> {
+    return request('/api/billing/plan');
+  },
+
+  createBillingOrder(): Promise<BillingOrder> {
+    return request('/api/billing/order', { method: 'POST', body: '{}' });
+  },
+
+  verifyPayment(payload: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }): Promise<{ user: AuthUser }> {
+    return request('/api/billing/verify', { method: 'POST', body: JSON.stringify(payload) });
   },
 };

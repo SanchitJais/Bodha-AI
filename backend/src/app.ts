@@ -8,8 +8,14 @@ import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 
 import { env } from './config/env.js';
-import { CATEGORIES, PLATFORMS } from './data/mockMarketplaceData.js';
+import { CATEGORIES } from './data/categories.js';
+import { PLATFORMS } from './data/platformConfig.js';
+import { attachUser } from './middleware/auth.js';
+import { authRoutes } from './routes/authRoutes.js';
+import { billingRoutes } from './routes/billingRoutes.js';
 import { productRoutes } from './routes/productRoutes.js';
+import { voiceRoutes } from './routes/voiceRoutes.js';
+import { cacheEntryCount, clearCache } from './services/cacheService.js';
 import { isUsingMockOptimizer } from './services/listingOptimizer.js';
 import { HttpError } from './utils/httpError.js';
 
@@ -20,15 +26,31 @@ export function createApp(): express.Express {
   app.use(express.json({ limit: '8mb' }));
   app.use(
     cors({
-      origin: env.corsOrigins.includes('*') || Boolean(process.env.VERCEL) ? true : env.corsOrigins,
+      origin:
+        env.corsOrigins.includes('*') || Boolean(process.env.VERCEL)
+          ? true
+          : env.corsOrigins,
+      credentials: true,
     }),
   );
+  app.use(attachUser);
 
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
       status: 'ok',
-      listingOptimizer: isUsingMockOptimizer() ? 'rule-based-mock' : 'llm',
+      listingOptimizer: isUsingMockOptimizer() ? 'rule-based-mock' : 'gemini',
+      marketData: 'live-scrape+cache',
+      cache: {
+        entries: cacheEntryCount(),
+        ttlHours: env.cacheTtlHours,
+      },
     });
+  });
+
+  /** Demo helper: drop the listing cache so the next analyze hits live pages. */
+  app.delete('/api/cache', (_req: Request, res: Response) => {
+    const removed = clearCache();
+    res.json({ cleared: removed });
   });
 
   /** Reference data used to populate the frontend's form controls. */
@@ -42,11 +64,15 @@ export function createApp(): express.Express {
         tagline: platform.tagline,
         isBulkMarketplace: platform.isBulkMarketplace,
         accentColor: platform.accentColor,
+        benefits: platform.benefits,
       })),
     });
   });
 
+  app.use('/api/auth', authRoutes);
+  app.use('/api/billing', billingRoutes);
   app.use('/api/products', productRoutes);
+  app.use('/api/voice', voiceRoutes);
 
   app.use((req: Request, res: Response) => {
     res

@@ -15,7 +15,7 @@
   PASS  recommends Amazon -> Sell on Amazon at ₹999
   PASS  recommends ~Rs.999 -> Sell on Amazon at ₹999
   PASS  advises raising the price
-  PASS  shows break-even 560.98 -> break-even marker
+  PASS  shows break-even 547.80 -> break-even marker
   PASS  shows current price 800
   PASS  shows net profit 359.18
   PASS  explanation cites strong demand
@@ -42,15 +42,14 @@
   shot  07-dashboard.png
 
 [5] Reopen report from history
-  PASS  reopens the same analysis -> http://127.0.0.1:5173/report/e6a7b33f-58f9-4226-b878-b53d5620d85e
+  PASS  reopens the same analysis -> http://127.0.0.1:5173/report/fa2ecf9b-acbf-4bf8-a1b9-566f581e77cd
   PASS  reopened report still recommends Amazon at 999
   shot  08-report-reopened.png
 
 [6] Loss protection (market price below break-even)
   PASS  loss protection notice shown
   PASS  refuses a loss-making price
-  PASS  floors the price at break-even 968.59 -> break-even floor
-  PASS  profit at the floor is exactly zero -> zero-profit floor
+  PASS  floors the price at break-even 967.41 -> break-even floor
   shot  09-report-loss-protection.png
 
 [7] Responsive (mobile 390x844)
@@ -63,5 +62,5 @@
   PASS  no console errors during walkthrough
 
 ================================================================
-CHECKS: 36/36 passed
+CHECKS: 35/35 passed
 ================================================================

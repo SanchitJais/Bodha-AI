@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import type { PlatformId, PlatformMeta } from '../../types';
 import { cx, formatPercent } from '../../utils/format';
 
@@ -10,14 +12,14 @@ interface PlatformChipsProps {
 
 /** Multi-select marketplace chips, exposed as an accessible checkbox group. */
 export function PlatformChips({ platforms, selected, onToggle, error }: PlatformChipsProps) {
+  const { t } = useTranslation();
+
   return (
     <fieldset>
-      <legend className="label-text">Preferred marketplaces</legend>
-      <p className="mb-3 text-xs text-slate-500">
-        Pick every marketplace you would consider. Bodha AI ranks them by fit.
-      </p>
+      <legend className="sr-only">{t('analyze.platforms')}</legend>
+      <p className="mb-3 text-xs text-ink-muted">{t('analyze.platformsHint')}</p>
 
-      <div className="grid gap-2.5 sm:grid-cols-2">
+      <div className="grid gap-0 border-t border-rule sm:grid-cols-2 sm:gap-x-6">
         {platforms.map((platform) => {
           const isSelected = selected.includes(platform.id);
 
@@ -25,32 +27,30 @@ export function PlatformChips({ platforms, selected, onToggle, error }: Platform
             <label
               key={platform.id}
               className={cx(
-                'group relative flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition',
-                isSelected
-                  ? 'border-brand-500 bg-brand-50/70 ring-1 ring-brand-500'
-                  : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50',
+                'group relative flex cursor-pointer items-start gap-3 border-b border-rule py-3.5 transition',
+                isSelected ? 'bg-brand-50/40' : 'hover:bg-[#faf8f3]',
               )}
             >
               <input
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => onToggle(platform.id)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded-sm border-rule text-brand-600 focus:ring-brand-600"
               />
 
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
+                <span className="flex items-baseline gap-2">
                   <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    className="h-2 w-2 shrink-0 self-center"
                     style={{ backgroundColor: platform.accentColor }}
                     aria-hidden="true"
                   />
-                  <span className="font-semibold text-slate-900">{platform.name}</span>
-                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">
-                    {formatPercent(platform.feePercent, 1)} fee
+                  <span className="font-medium text-ink">{platform.name}</span>
+                  <span className="figure text-[11px] text-ink-muted">
+                    {t('analyze.fee', { percent: formatPercent(platform.feePercent, 1) })}
                   </span>
                 </span>
-                <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+                <span className="mt-1 block text-xs leading-relaxed text-ink-muted">
                   {platform.tagline}
                 </span>
               </span>

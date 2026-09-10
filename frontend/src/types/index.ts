@@ -12,6 +12,8 @@ export type IndexLevel = 'Low' | 'Medium' | 'High';
 
 export type PriceAction = 'increase' | 'decrease' | 'hold';
 
+export type DataFreshness = 'live' | 'cached' | 'unavailable';
+
 export interface PlatformRecommendation {
   id: PlatformId;
   name: string;
@@ -24,6 +26,8 @@ export interface PlatformRecommendation {
   recommendedPrice: number;
   estimatedProfit: number;
   profitMargin: number;
+  profitAvailable?: boolean;
+  profitError?: string | null;
   competitionIndex: number;
   demandIndex: number;
   competition: IndexLevel;
@@ -32,12 +36,54 @@ export interface PlatformRecommendation {
   priceAction: PriceAction;
   explanation: string;
   lossRiskAvoided: boolean;
+  unavailable: boolean;
+  dataFreshness: DataFreshness;
+  lastUpdated: string | null;
+  listingCount: number;
 }
 
 export interface OptimizedListing {
   title: string;
   description: string;
   keywords: string[];
+}
+
+export interface CompetitorInsight {
+  title: string;
+  price: number;
+  rating: number | null;
+  reviewCount: number | null;
+  url: string;
+  thumbnail: string | null;
+  strengths: string[];
+  weaknesses: string[];
+}
+
+export interface ReviewSentiment {
+  available: boolean;
+  topPraises: string[];
+  topComplaints: string[];
+}
+
+export interface RegionalDemand {
+  available: boolean;
+  states: { state: string; interest: number }[];
+}
+
+export interface ReportInsights {
+  language?: 'en' | 'hi' | 'ta';
+  competitors: CompetitorInsight[];
+  reviewSentiment: ReviewSentiment;
+  regionalDemand: RegionalDemand;
+  platformBenefits: string[];
+  competitorPlatform?: PlatformId;
+}
+
+export interface AutoInsightResponse {
+  confident: boolean;
+  suggestedTitle: string | null;
+  suggestedDescription: string | null;
+  suggestedCategory: CategoryId | null;
 }
 
 export interface AnalysisResponse {
@@ -52,6 +98,7 @@ export interface AnalysisResponse {
   recommendedPrice: number;
   platforms: PlatformRecommendation[];
   optimizedListing: OptimizedListing;
+  insights?: ReportInsights;
   createdAt: string;
 }
 
@@ -73,6 +120,7 @@ export interface AnalyzeRequest {
   manufacturingCost: number;
   currentPrice: number;
   platforms: PlatformId[];
+  language?: 'en' | 'hi' | 'ta';
 }
 
 export interface PlatformMeta {
@@ -82,6 +130,7 @@ export interface PlatformMeta {
   tagline: string;
   isBulkMarketplace: boolean;
   accentColor: string;
+  benefits?: string[];
 }
 
 export interface CategoryMeta {
@@ -94,7 +143,53 @@ export interface MetaResponse {
   platforms: PlatformMeta[];
 }
 
-/** Structured error body returned by every failing API call. */
+export interface VoiceQueryResponse {
+  answer: string;
+  language: 'en' | 'hi' | 'ta' | 'hinglish';
+  source: 'gemini' | 'fallback';
+}
+
+export interface CreditStatus {
+  plan: 'free' | 'pro';
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  planExpiresAt: string | null;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+  plan: 'free' | 'pro';
+  planExpiresAt: string | null;
+  createdAt: string;
+  credits: CreditStatus;
+  storeName: string | null;
+  storeCity: string | null;
+  storeCategory: string | null;
+  onboarded: boolean;
+}
+
+export interface BillingPlan {
+  plan: 'free' | 'pro';
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  planExpiresAt: string | null;
+  amountPaise: number;
+  amountUsd: number;
+  currency: string;
+  razorpayConfigured: boolean;
+}
+
+export interface BillingOrder {
+  mock: boolean;
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+}
 export interface ApiErrorBody {
   error: {
     code: string;

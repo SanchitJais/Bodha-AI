@@ -2,8 +2,10 @@
 
 import { createApp } from './app.js';
 import { env } from './config/env.js';
-import { closeDatabase } from './models/db.js';
+import { closeDatabase, getDatabase } from './models/db.js';
+import { closeBrowser } from './services/scraper/browserPool.js';
 
+getDatabase();
 
 const app = createApp();
 
@@ -17,7 +19,7 @@ if (!process.env.VERCEL) {
     console.log('[bodha-ai] ' + signal + ' received, shutting down');
     server.close(() => {
       closeDatabase();
-      process.exit(0);
+      void closeBrowser().finally(() => process.exit(0));
     });
   };
 

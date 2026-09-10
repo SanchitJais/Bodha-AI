@@ -13,11 +13,16 @@ import path from 'node:path';
 import { env } from '../config/env.js';
 
 /**
- * `node:sqlite` type alias, resolved lazily when `getDatabase()` is first
- * called. This avoids crashing at module load time on runtimes (e.g. Vercel
- * serverless) where `node:sqlite` may not yet be available at import time.
+ * `node:sqlite` is a prefix-only builtin, so bundlers that strip the `node:`
+ * prefix before their builtin check (Vite, and therefore Vitest) try to resolve
+ * a non-existent "sqlite" package and fail. Loading it through `createRequire`
+ * keeps the specifier opaque to static analysis and hands it straight to Node,
+ * which works identically under `tsx`, the compiled build, and the test runner.
  */
-type DatabaseSync = InstanceType<(typeof import('node:sqlite'))['DatabaseSync']>;
+const require = createRequire(import.meta.url);
+const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
+
+type DatabaseSync = InstanceType<typeof DatabaseSync>;
 
 let database: DatabaseSync | null = null;
 
@@ -53,6 +58,37 @@ const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_products_seller_created
     ON products (sellerId, createdAt DESC);
+
+  CREATE TABLE IF NOT EXISTS listing_cache (
+    cacheKey     TEXT PRIMARY KEY,
+    platformId   TEXT NOT NULL,
+    category     TEXT NOT NULL,
+    query        TEXT NOT NULL,
+    listingsJson TEXT NOT NULL,
+    fetchedAt    TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_listing_cache_platform_fetched
+    ON listing_cache (platformId, fetchedAt DESC);
+
+  CREATE TABLE IF NOT EXISTS users (
+    id            TEXT PRIMARY KEY,
+    email         TEXT NOT NULL UNIQUE,
+    passwordHash  TEXT NOT NULL,
+    displayName   TEXT NOT NULL,
+    plan          TEXT NOT NULL DEFAULT 'free',
+    planExpiresAt TEXT,
+    createdAt     TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    token     TEXT PRIMARY KEY,
+    userId    TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (userId);
 `;
 
 /**
@@ -65,15 +101,6 @@ export const DEMO_SELLER_ID = 'demo-seller';
 export function getDatabase(): DatabaseSync {
   if (database) return database;
 
-  /**
-   * Lazy-require `node:sqlite` so that importing this module does NOT crash
-   * at startup on platforms where the built-in may not be initialised yet
-   * (e.g. Vercel serverless cold starts). The require only runs here, the
-   * first time a DB operation is actually needed.
-   */
-  const require = createRequire(import.meta.url);
-  const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
-
   const dbPath = path.resolve(env.databasePath);
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
@@ -81,12 +108,28 @@ export function getDatabase(): DatabaseSync {
   database.exec('PRAGMA journal_mode = WAL;');
   database.exec('PRAGMA foreign_keys = ON;');
   database.exec(SCHEMA);
+  ensureColumn(database, 'analyses', 'insightsJson', 'TEXT');
+  ensureColumn(database, 'users', 'storeName', 'TEXT');
+  ensureColumn(database, 'users', 'storeCity', 'TEXT');
+  ensureColumn(database, 'users', 'storeCategory', 'TEXT');
+  ensureColumn(database, 'users', 'onboardedAt', 'TEXT');
 
   database
     .prepare('INSERT OR IGNORE INTO sellers (id, displayName, createdAt) VALUES (?, ?, ?)')
     .run(DEMO_SELLER_ID, 'Demo Seller', new Date().toISOString());
 
   return database;
+}
+
+function ensureColumn(
+  db: DatabaseSync,
+  table: string,
+  column: string,
+  definition: string,
+): void {
+  const rows = db.prepare('PRAGMA table_info(' + table + ')').all() as { name: string }[];
+  if (rows.some((row) => row.name === column)) return;
+  db.exec('ALTER TABLE ' + table + ' ADD COLUMN ' + column + ' ' + definition);
 }
 
 /** Close the handle - used by tests and graceful shutdown. */
