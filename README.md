@@ -2,7 +2,7 @@
 
 **An AI-powered marketplace recommendation engine for Indian e-commerce sellers.**
 
-> Team **Code4Bharat** — Sanchit Jaiswal · Krishna Keshab · Chiraag Mutupuri · Sagnik Mitra · Sanjay Gupta
+> Team **Code4Bharat** — Sanchit Jaiswal · Krishna Keshab · Chiraag Mutupuri · Sagnik Mitra · Sanjay Kumar Gupta
 
 ---
  
@@ -390,4 +390,4 @@ Hindi and Tamil — deliberately excluded to keep the project focused.
 | Krishna Keshab |
 | Chiraag Mutupuri |
 | Sagnik Mitra |
-| Sanjay Gupta |
+| Sanjay Kumar Gupta |
