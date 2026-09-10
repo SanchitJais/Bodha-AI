@@ -127,7 +127,9 @@ export function PlatformComparison({
                       <p className="mt-1">
                         {platform.profitAvailable === false
                           ? t('report.profitMissing')
-                          : t('report.profitUnit') + ' ' + formatCurrencyPrecise(platform.estimatedProfit)}
+                          : t('report.profitUnit') +
+                            ' ' +
+                            formatCurrencyPrecise(platform.estimatedProfit)}
                       </p>
                     </td>
                   ) : (
@@ -182,13 +184,17 @@ export function PlatformComparison({
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         {platform.profitAvailable === false ? (
-                          <span className="text-xs text-danger-600">{t('report.profitMissing')}</span>
+                          <span className="text-xs text-danger-600">
+                            {t('report.profitMissing')}
+                          </span>
                         ) : (
                           <>
                             <span
                               className={cx(
                                 'figure block font-medium',
-                                platform.estimatedProfit > 0 ? 'text-profit-600' : 'text-danger-600',
+                                platform.estimatedProfit > 0
+                                  ? 'text-profit-600'
+                                  : 'text-danger-600',
                               )}
                             >
                               {formatCurrencyPrecise(platform.estimatedProfit)}
@@ -325,7 +331,9 @@ function PlatformCard({
             </div>
             <div className="flex justify-between">
               <dt className="text-ink-muted">{t('report.medianPrice')}</dt>
-              <dd className="figure font-medium text-ink">{formatCurrency(platform.marketPrice)}</dd>
+              <dd className="figure font-medium text-ink">
+                {formatCurrency(platform.marketPrice)}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-ink-muted">{t('report.marketRange')}</dt>
@@ -359,7 +367,9 @@ function PlatformCard({
               </dd>
             </div>
             <p className="text-xs font-medium text-ink">
-              {t('report.' + adviceKey(platform.priceAction), { price: formatCurrency(currentPrice) })}
+              {t('report.' + adviceKey(platform.priceAction), {
+                price: formatCurrency(currentPrice),
+              })}
             </p>
           </dl>
 

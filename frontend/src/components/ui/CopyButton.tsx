@@ -39,9 +39,7 @@ export function CopyButton({ value, label, className }: CopyButtonProps) {
       aria-label={'Copy ' + label.toLowerCase()}
       className={cx(
         'inline-flex shrink-0 items-center gap-1.5 px-2 py-1 text-xs font-medium transition',
-        copied
-          ? 'text-profit-700'
-          : 'text-ink-muted ring-1 ring-inset ring-rule hover:text-ink',
+        copied ? 'text-profit-700' : 'text-ink-muted ring-1 ring-inset ring-rule hover:text-ink',
         className,
       )}
     >

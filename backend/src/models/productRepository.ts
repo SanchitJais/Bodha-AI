@@ -163,9 +163,8 @@ export function findAnalysisById(productId: string): AnalysisRecord | null {
  * an API response.
  */
 export function findAnalysisOwner(productId: string): string | null {
-  const row = getDatabase()
-    .prepare('SELECT sellerId FROM products WHERE id = ?')
-    .get(productId) as { sellerId: string } | undefined;
+  const row = getDatabase().prepare('SELECT sellerId FROM products WHERE id = ?').get(productId) as
+    { sellerId: string } | undefined;
 
   return row?.sellerId ?? null;
 }

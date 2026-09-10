@@ -266,9 +266,9 @@ describe('analyzePricing input guards', () => {
   });
 
   it('rejects non-positive money values', () => {
-    expect(() => analyzePricing({ ...base, manufacturingCost: 0 }, { amazon: APPAREL_AMAZON })).toThrow(
-      /greater than zero/i,
-    );
+    expect(() =>
+      analyzePricing({ ...base, manufacturingCost: 0 }, { amazon: APPAREL_AMAZON }),
+    ).toThrow(/greater than zero/i);
     expect(() => analyzePricing({ ...base, currentPrice: -5 }, { amazon: APPAREL_AMAZON })).toThrow(
       /greater than zero/i,
     );
@@ -315,7 +315,10 @@ describe('Sony WH-1000XM5 — seller price and matched-product market', () => {
   it('uses the seller cost and ₹24,990 price for profit, never a silent zero', () => {
     const result = analyzePricing(SONY, {
       amazon: snapshot(SONY_PRICES, { demandIndex: 85, competitionIndex: 60 }),
-      flipkart: snapshot([21_990, 23_990, 24_990, 26_490], { demandIndex: 78, competitionIndex: 55 }),
+      flipkart: snapshot([21_990, 23_990, 24_990, 26_490], {
+        demandIndex: 78,
+        competitionIndex: 55,
+      }),
       snapdeal: snapshot([19_490, 22_490, 24_490], { demandIndex: 50, competitionIndex: 35 }),
     });
 
@@ -346,12 +349,7 @@ describe('Sony WH-1000XM5 — seller price and matched-product market', () => {
       expect(platform.profitAvailable).toBe(true);
       expect(platform.estimatedProfit).toBe(
         round(
-          calculateEstimatedProfit(
-            24_990,
-            18_000,
-            platform.feePercent,
-            platform.avgShippingFee,
-          ),
+          calculateEstimatedProfit(24_990, 18_000, platform.feePercent, platform.avgShippingFee),
         ),
       );
       expect(platform.marketPriceRange[0]).toBeGreaterThanOrEqual(18_000);

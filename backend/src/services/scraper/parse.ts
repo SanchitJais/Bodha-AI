@@ -22,7 +22,8 @@ export function parseCount(raw: string | null | undefined): number | null {
   const base = Number(match[1]);
   if (!Number.isFinite(base)) return null;
   const suffix = match[2];
-  const multiplier = suffix === 'k' ? 1_000 : suffix === 'm' ? 1_000_000 : suffix === 'b' ? 1_000_000_000 : 1;
+  const multiplier =
+    suffix === 'k' ? 1_000 : suffix === 'm' ? 1_000_000 : suffix === 'b' ? 1_000_000_000 : 1;
   return Math.round(base * multiplier);
 }
 

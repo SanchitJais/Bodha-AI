@@ -123,7 +123,12 @@ export function PriceRecommendationPanel({
       <div className="mt-6 grid grid-cols-3 gap-3">
         <PriceStat label={t('report.breakEven')} value={breakEvenPrice} tone="danger" precise />
         <PriceStat label={t('report.yourPrice')} value={currentPrice} tone="neutral" />
-        <PriceStat label={t('report.recommended')} value={recommendedPrice} tone="profit" emphasis />
+        <PriceStat
+          label={t('report.recommended')}
+          value={recommendedPrice}
+          tone="profit"
+          emphasis
+        />
       </div>
 
       <div className="mt-8 pt-2" style={{ paddingBottom: 28 + labelRows * LABEL_ROW_HEIGHT_PX }}>
@@ -176,7 +181,10 @@ export function PriceRecommendationPanel({
       </p>
 
       <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
-        <SummaryStat label={t('report.commission')} value={(platform.feePercent * 100).toFixed(1) + '%'} />
+        <SummaryStat
+          label={t('report.commission')}
+          value={(platform.feePercent * 100).toFixed(1) + '%'}
+        />
         <SummaryStat label={t('report.shipping')} value={formatCurrency(platform.avgShippingFee)} />
         <SummaryStat
           label={t('report.netProfit')}

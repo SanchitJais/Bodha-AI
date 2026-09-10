@@ -4,11 +4,7 @@
  */
 
 export type ErrorCode =
-  | 'VALIDATION_ERROR'
-  | 'NOT_FOUND'
-  | 'INTERNAL_ERROR'
-  | 'UNAUTHORIZED'
-  | 'PAYMENT_REQUIRED';
+  'VALIDATION_ERROR' | 'NOT_FOUND' | 'INTERNAL_ERROR' | 'UNAUTHORIZED' | 'PAYMENT_REQUIRED';
 
 export interface ErrorBody {
   error: {

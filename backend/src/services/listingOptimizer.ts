@@ -279,8 +279,10 @@ async function geminiOptimizer(input: ListingOptimizerInput): Promise<OptimizedL
 
   const listing = await generateJson<OptimizedListing>(
     [
-      'You are Bodha AI\'s listing optimizer for Indian marketplaces (Amazon, Flipkart, Snapdeal, Alibaba).',
-      'Write marketplace listing copy in ' + LANGUAGE_NAME[language] + ' only. Do not mix languages.',
+      "You are Bodha AI's listing optimizer for Indian marketplaces (Amazon, Flipkart, Snapdeal, Alibaba).",
+      'Write marketplace listing copy in ' +
+        LANGUAGE_NAME[language] +
+        ' only. Do not mix languages.',
       'Return JSON with keys: title (string, max 120 chars), description (string, 2-4 short paragraphs separated by blank lines), keywords (array of 3 to 5 short phrases).',
       'Keep product specs, brand tokens and model numbers (USB-C, 65W, 1.5m) unchanged.',
       'Name the recommended marketplace (' +

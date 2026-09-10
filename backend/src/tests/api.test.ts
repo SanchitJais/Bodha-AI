@@ -66,6 +66,11 @@ vi.mock('../services/marketplaceDataProvider.js', () => {
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bodha-test-'));
 process.env.DATABASE_PATH = path.join(tempDir, 'test.db');
+// Fixture value, set before `config/env.js` loads, so these tests don't
+// depend on whatever ELEVENLABS_TOOL_SECRET (if any) happens to be in a
+// developer's local `.env` — `.env` is gitignored and absent in CI.
+process.env.ELEVENLABS_TOOL_SECRET = 'fixture_tool_secret_never_real';
+const TOOL_SECRET_HEADER = { 'x-tool-secret': process.env.ELEVENLABS_TOOL_SECRET };
 
 let app: Express;
 let closeDatabase: () => void;
@@ -226,6 +231,39 @@ describe('GET /api/products/:id', () => {
   });
 });
 
+describe('GET /api/products/:id/pdf', () => {
+  it('requires a session', async () => {
+    await request(app).get('/api/products/does-not-exist/pdf').expect(401);
+  });
+
+  it("returns a PDF for the report's owner, and 404 for anyone else", async () => {
+    const owner = request.agent(app);
+    await owner.post('/api/auth/signup').send({
+      email: 'pdf-owner@example.com',
+      password: 'password12',
+      name: 'PDF Owner',
+    });
+    const created = await owner.post('/api/products/analyze').send(validBody).expect(201);
+
+    const response = await owner
+      .get('/api/products/' + created.body.productId + '/pdf')
+      .expect(200);
+    expect(response.headers['content-type']).toBe('application/pdf');
+    expect(response.body.slice(0, 4).toString('latin1')).toBe('%PDF');
+
+    const otherAgent = request.agent(app);
+    await otherAgent.post('/api/auth/signup').send({
+      email: 'pdf-other@example.com',
+      password: 'password12',
+      name: 'PDF Other',
+    });
+    const denied = await otherAgent
+      .get('/api/products/' + created.body.productId + '/pdf')
+      .expect(404);
+    expect(denied.body.error.code).toBe('NOT_FOUND');
+  });
+});
+
 describe('GET /', () => {
   it('returns API status instead of a 404', async () => {
     const response = await request(app).get('/').expect(200);
@@ -269,6 +307,7 @@ describe('GET /api/voice-tools/*', () => {
 
     const summary = await request(app)
       .get('/api/voice-tools/report-summary')
+      .set(TOOL_SECRET_HEADER)
       .query({ productId, language: 'en' })
       .expect(200);
 
@@ -281,6 +320,7 @@ describe('GET /api/voice-tools/*', () => {
 
     const price = await request(app)
       .get('/api/voice-tools/price-explanation')
+      .set(TOOL_SECRET_HEADER)
       .query({ productId, language: 'hi' })
       .expect(200);
 
@@ -297,6 +337,7 @@ describe('GET /api/voice-tools/*', () => {
 
     const competitors = await request(app)
       .get('/api/voice-tools/competitor-analysis')
+      .set(TOOL_SECRET_HEADER)
       .query({ productId, language: 'en' })
       .expect(200);
     expect(competitors.body).toEqual({
@@ -306,6 +347,7 @@ describe('GET /api/voice-tools/*', () => {
 
     const reviews = await request(app)
       .get('/api/voice-tools/review-sentiment')
+      .set(TOOL_SECRET_HEADER)
       .query({ productId, language: 'ta' })
       .expect(200);
     expect(reviews.body.available).toBe(false);
@@ -313,6 +355,7 @@ describe('GET /api/voice-tools/*', () => {
 
     const demand = await request(app)
       .get('/api/voice-tools/regional-demand')
+      .set(TOOL_SECRET_HEADER)
       .query({ productId, language: 'hi' })
       .expect(200);
     expect(demand.body.available).toBe(false);
@@ -336,13 +379,18 @@ describe('GET /api/voice-tools/*', () => {
           weaknesses: ['Priced above the seller'],
         },
       ],
-      reviewSentiment: { available: true, topPraises: ['fast charge'], topComplaints: ['short cable'] },
+      reviewSentiment: {
+        available: true,
+        topPraises: ['fast charge'],
+        topComplaints: ['short cable'],
+      },
       regionalDemand: { available: true, states: [{ state: 'Maharashtra', interest: 88 }] },
       platformBenefits: [],
     });
 
     const competitors = await request(app)
       .get('/api/voice-tools/competitor-analysis')
+      .set(TOOL_SECRET_HEADER)
       .query({ productId: created.body.productId, language: 'en' })
       .expect(200);
     expect(competitors.body).toMatchObject({
@@ -352,6 +400,7 @@ describe('GET /api/voice-tools/*', () => {
 
     const reviews = await request(app)
       .get('/api/voice-tools/review-sentiment')
+      .set(TOOL_SECRET_HEADER)
       .query({ productId: created.body.productId })
       .expect(200);
     expect(reviews.body).toEqual({
@@ -362,6 +411,7 @@ describe('GET /api/voice-tools/*', () => {
 
     const demand = await request(app)
       .get('/api/voice-tools/regional-demand')
+      .set(TOOL_SECRET_HEADER)
       .query({ productId: created.body.productId })
       .expect(200);
     expect(demand.body).toEqual({
@@ -373,6 +423,7 @@ describe('GET /api/voice-tools/*', () => {
   it('does not invent data for a missing productId', async () => {
     const response = await request(app)
       .get('/api/voice-tools/report-summary')
+      .set(TOOL_SECRET_HEADER)
       .query({ language: 'en' })
       .expect(200);
 
@@ -380,6 +431,16 @@ describe('GET /api/voice-tools/*', () => {
       available: false,
       message: 'No stored report is available for this product.',
     });
+  });
+
+  it('rejects a call with a missing or wrong x-tool-secret header', async () => {
+    await request(app).get('/api/voice-tools/report-summary').query({ language: 'en' }).expect(401);
+
+    await request(app)
+      .get('/api/voice-tools/report-summary')
+      .set({ 'x-tool-secret': 'not-the-real-secret' })
+      .query({ language: 'en' })
+      .expect(401);
   });
 
   it('returns a public agent id when no ElevenLabs API key is configured', async () => {
@@ -391,7 +452,10 @@ describe('GET /api/voice-tools/*', () => {
 
 describe('POST /api/voice/query', () => {
   it('rejects an empty question with a 400', async () => {
-    const response = await request(app).post('/api/voice/query').send({ text: '', language: 'en' }).expect(400);
+    const response = await request(app)
+      .post('/api/voice/query')
+      .send({ text: '', language: 'en' })
+      .expect(400);
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
 

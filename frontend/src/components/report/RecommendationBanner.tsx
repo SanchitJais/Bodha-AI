@@ -34,7 +34,10 @@ export function RecommendationBanner({ analysis, winner }: RecommendationBannerP
   }
 
   return (
-    <section className="bg-[#141814] px-6 py-8 text-[#f3efe6] sm:px-10 sm:py-10" aria-labelledby="recommendation-heading">
+    <section
+      className="bg-[#141814] px-6 py-8 text-[#f3efe6] sm:px-10 sm:py-10"
+      aria-labelledby="recommendation-heading"
+    >
       <div>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">
           <span className="inline-flex items-center gap-2 text-white/80">
@@ -73,7 +76,10 @@ export function RecommendationBanner({ analysis, winner }: RecommendationBannerP
           </div>
 
           <dl className="flex shrink-0 gap-8">
-            <BannerStat label={t('report.yourPrice')} value={formatCurrency(analysis.currentPrice)} />
+            <BannerStat
+              label={t('report.yourPrice')}
+              value={formatCurrency(analysis.currentPrice)}
+            />
             <BannerStat
               label={t('report.recommended')}
               value={formatCurrency(winner.recommendedPrice)}

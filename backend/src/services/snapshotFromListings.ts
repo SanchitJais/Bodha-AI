@@ -26,11 +26,7 @@
  *   expose `sellerCount` we blend 50/50 with normalize(avg sellerCount, cap 40).
  */
 
-import type {
-  ComparableListing,
-  DataFreshness,
-  MarketSnapshot,
-} from '../types/index.js';
+import type { ComparableListing, DataFreshness, MarketSnapshot } from '../types/index.js';
 import { filterRelevantListings } from './listingRelevance.js';
 
 export interface SnapshotFromListingsOptions {

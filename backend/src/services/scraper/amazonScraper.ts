@@ -45,32 +45,36 @@ export class AmazonScraper implements MarketplaceScraper {
       extract: async (page) => {
         const origin = ORIGIN;
         const max = env.scrapeMaxResults;
-        const raw = await page.$$eval(CARD, (cards, cap) => {
-          return cards.slice(0, cap).map((card) => {
-            const asin = card.getAttribute('data-asin') ?? '';
-            const titleEl = card.querySelector('h2 span');
-            const title = (titleEl?.textContent ?? '').replace(/\s+/g, ' ').trim();
-            const priceOffscreen = card.querySelector('.a-price .a-offscreen');
-            const priceWhole = card.querySelector('.a-price-whole');
-            const priceText =
-              (priceOffscreen?.textContent ?? '').trim() ||
-              (priceWhole?.textContent ?? '').trim();
-            const ratingEl = card.querySelector('.a-icon-alt');
-            const ratingText = ratingEl?.textContent ?? '';
-            const reviewEl =
-              card.querySelector('a[href*="customerReviews"] span') ??
-              card.querySelector('span.a-size-base.s-underline-text') ??
-              card.querySelector('[aria-label*="ratings"]');
-            const reviewText =
-              (reviewEl?.textContent ?? reviewEl?.getAttribute('aria-label') ?? '').trim() ||
-              ((card.textContent ?? '').match(/\(([\d.,]+\s*[KkMm]?)\)/)?.[1] ?? '');
-            const link = card.querySelector('h2 a') as HTMLAnchorElement | null;
-            const href = link?.getAttribute('href') ?? '';
-            const img = card.querySelector('img') as HTMLImageElement | null;
-            const thumbnail = img?.getAttribute('src') || img?.getAttribute('data-src') || '';
-            return { asin, title, priceText, ratingText, reviewText, href, thumbnail };
-          });
-        }, max);
+        const raw = await page.$$eval(
+          CARD,
+          (cards, cap) => {
+            return cards.slice(0, cap).map((card) => {
+              const asin = card.getAttribute('data-asin') ?? '';
+              const titleEl = card.querySelector('h2 span');
+              const title = (titleEl?.textContent ?? '').replace(/\s+/g, ' ').trim();
+              const priceOffscreen = card.querySelector('.a-price .a-offscreen');
+              const priceWhole = card.querySelector('.a-price-whole');
+              const priceText =
+                (priceOffscreen?.textContent ?? '').trim() ||
+                (priceWhole?.textContent ?? '').trim();
+              const ratingEl = card.querySelector('.a-icon-alt');
+              const ratingText = ratingEl?.textContent ?? '';
+              const reviewEl =
+                card.querySelector('a[href*="customerReviews"] span') ??
+                card.querySelector('span.a-size-base.s-underline-text') ??
+                card.querySelector('[aria-label*="ratings"]');
+              const reviewText =
+                (reviewEl?.textContent ?? reviewEl?.getAttribute('aria-label') ?? '').trim() ||
+                ((card.textContent ?? '').match(/\(([\d.,]+\s*[KkMm]?)\)/)?.[1] ?? '');
+              const link = card.querySelector('h2 a') as HTMLAnchorElement | null;
+              const href = link?.getAttribute('href') ?? '';
+              const img = card.querySelector('img') as HTMLImageElement | null;
+              const thumbnail = img?.getAttribute('src') || img?.getAttribute('data-src') || '';
+              return { asin, title, priceText, ratingText, reviewText, href, thumbnail };
+            });
+          },
+          max,
+        );
 
         for (const row of raw) {
           if (!row.asin || !row.title) continue;

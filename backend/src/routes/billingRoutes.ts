@@ -70,36 +70,40 @@ billingRoutes.post(
   },
 );
 
-billingRoutes.post('/verify', requireUser, (req: Request, res: Response, next: NextFunction): void => {
-  try {
-    if (!req.user) throw HttpError.unauthorized();
-    const orderId = String(req.body?.razorpay_order_id ?? '');
-    const paymentId = String(req.body?.razorpay_payment_id ?? '');
-    const signature = String(req.body?.razorpay_signature ?? '');
+billingRoutes.post(
+  '/verify',
+  requireUser,
+  (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      if (!req.user) throw HttpError.unauthorized();
+      const orderId = String(req.body?.razorpay_order_id ?? '');
+      const paymentId = String(req.body?.razorpay_payment_id ?? '');
+      const signature = String(req.body?.razorpay_signature ?? '');
 
-    if (orderId.startsWith('order_dev_') && !env.razorpayKeySecret) {
+      if (orderId.startsWith('order_dev_') && !env.razorpayKeySecret) {
+        const user = activatePro(req.user.id);
+        res.json({ user: { ...user, credits: creditStatus(user) } });
+        return;
+      }
+
+      if (!env.razorpayKeySecret) {
+        throw HttpError.badRequest('Razorpay is not configured');
+      }
+      if (!orderId || !paymentId || !signature) {
+        throw HttpError.badRequest('Payment verification details are missing');
+      }
+
+      const expected = createHmac('sha256', env.razorpayKeySecret)
+        .update(orderId + '|' + paymentId)
+        .digest('hex');
+      if (expected !== signature) {
+        throw HttpError.badRequest('Payment signature did not match');
+      }
+
       const user = activatePro(req.user.id);
       res.json({ user: { ...user, credits: creditStatus(user) } });
-      return;
+    } catch (error) {
+      next(error);
     }
-
-    if (!env.razorpayKeySecret) {
-      throw HttpError.badRequest('Razorpay is not configured');
-    }
-    if (!orderId || !paymentId || !signature) {
-      throw HttpError.badRequest('Payment verification details are missing');
-    }
-
-    const expected = createHmac('sha256', env.razorpayKeySecret)
-      .update(orderId + '|' + paymentId)
-      .digest('hex');
-    if (expected !== signature) {
-      throw HttpError.badRequest('Payment signature did not match');
-    }
-
-    const user = activatePro(req.user.id);
-    res.json({ user: { ...user, credits: creditStatus(user) } });
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);

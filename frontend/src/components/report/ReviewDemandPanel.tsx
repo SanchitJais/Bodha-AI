@@ -39,7 +39,10 @@ export function ReviewDemandPanel({ sentiment, demand }: ReviewDemandPanelProps)
         {demand.available && demand.states.length > 0 ? (
           <ol className="mt-6 space-y-3">
             {demand.states.map((row) => (
-              <li key={row.state} className="grid grid-cols-[8rem_minmax(0,1fr)_2rem] items-center gap-3">
+              <li
+                key={row.state}
+                className="grid grid-cols-[8rem_minmax(0,1fr)_2rem] items-center gap-3"
+              >
                 <span className="text-sm text-ink">{row.state}</span>
                 <span className="h-[3px] bg-rule">
                   <span

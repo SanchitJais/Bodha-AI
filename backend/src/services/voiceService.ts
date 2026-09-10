@@ -64,7 +64,8 @@ function loginGate(language: SpokenLanguage): string {
     en: 'I can explain how Bodha AI works, but product numbers come from a stored analysis. Sign in and open a report, or analyse a product first.',
     hi: 'मैं साइट समझा सकता हूँ, लेकिन उत्पाद के आँकड़े सेव की गई रिपोर्ट से आते हैं। साइन-इन करें और रिपोर्ट खोलें, या पहले विश्लेषण करें।',
     ta: 'நான் தளத்தை விளக்கலாம். எண்கள் சேமித்த அறிக்கையிலிருந்து வரும். உள்நுழைந்து அறிக்கையைத் திறக்கவும், அல்லது முதலில் பகுப்பாய்வு செய்யவும்.',
-    hinglish: 'Site samjha sakta hoon, lekin product numbers stored report se aate hain. Sign in karke report kholo, ya pehle analyse karo.',
+    hinglish:
+      'Site samjha sakta hoon, lekin product numbers stored report se aate hain. Sign in karke report kholo, ya pehle analyse karo.',
   });
 }
 
@@ -73,7 +74,8 @@ function offTopic(language: SpokenLanguage): string {
     en: 'I only help with Bodha AI and your analysed product — where to sell, what to charge, competitors and reviews. Ask about this report or how the app works.',
     hi: 'मैं केवल Bodha AI और आपके विश्लेषित उत्पाद पर मदद करता हूँ — कहाँ बेचें, कितना चार्ज करें, प्रतियोगी और समीक्षाएँ। रिपोर्ट या ऐप के बारे में पूछें।',
     ta: 'நான் Bodha AI மற்றும் உங்கள் பகுப்பாய்வு செய்யப்பட்ட பொருள் பற்றி மட்டுமே உதவுகிறேன். இந்த அறிக்கை அல்லது செயலியைப் பற்றிக் கேளுங்கள்.',
-    hinglish: 'Main sirf Bodha AI aur aapke analysed product pe help karta hoon — kahan bechna hai, kitna charge karna hai, competitors, reviews. Report ya app ke baare mein poocho.',
+    hinglish:
+      'Main sirf Bodha AI aur aapke analysed product pe help karta hoon — kahan bechna hai, kitna charge karna hai, competitors, reviews. Report ya app ke baare mein poocho.',
   });
 }
 
@@ -87,7 +89,8 @@ function siteAnswer(query: VoiceQuery, language: SpokenLanguage): string {
       en: 'New sellers get 6 free product analyses each month. After that, Pro is $10 a month via Razorpay test checkout — open Pricing.',
       hi: 'नए सेलर को हर महीने 6 मुफ़्त विश्लेषण मिलते हैं। उसके बाद Pro $10/महीना है, Razorpay टेस्ट से — Pricing खोलें।',
       ta: 'புதிய விற்பனையாளருக்கு மாதம் 6 இலவச பகுப்பாய்வு. அதற்கு மேல் Pro $10/மாதம், Razorpay சோதனை — Pricing திறக்கவும்.',
-      hinglish: 'Naye sellers ko mahine mein 6 free analyses milte hain. Uske baad Pro $10/month Razorpay test se — Pricing page kholo.',
+      hinglish:
+        'Naye sellers ko mahine mein 6 free analyses milte hain. Uske baad Pro $10/month Razorpay test se — Pricing page kholo.',
     });
   }
 
@@ -96,7 +99,8 @@ function siteAnswer(query: VoiceQuery, language: SpokenLanguage): string {
       en: 'Use Sign up, then a short store setup — business name, city and main category. After that you can run Analyze.',
       hi: 'Sign up करें, फिर छोटा स्टोर सेटअप — दुकान का नाम, शहर और मुख्य श्रेणी। उसके बाद Analyze चलता है।',
       ta: 'Sign up செய்து, கடை பெயர், நகரம், முக்கிய வகையை நிரப்புங்கள். பிறகு Analyze.',
-      hinglish: 'Sign up karo, phir chhota store setup — dukan ka naam, city aur category. Uske baad Analyze chalta hai.',
+      hinglish:
+        'Sign up karo, phir chhota store setup — dukan ka naam, city aur category. Uske baad Analyze chalta hai.',
     });
   }
 
@@ -104,12 +108,15 @@ function siteAnswer(query: VoiceQuery, language: SpokenLanguage): string {
     en: 'Bodha AI compares Amazon, Flipkart and Snapdeal from live listings, then recommends where to sell and a price that never goes below break-even. Open a product report to hear its numbers.',
     hi: 'Bodha AI Amazon, Flipkart और Snapdeal की लाइव लिस्टिंग पढ़कर बताता है कहाँ बेचें और कितना चार्ज करें — ब्रेक-ईवन से नीचे कभी नहीं। आँकड़ों के लिए उत्पाद रिपोर्ट खोलें।',
     ta: 'Bodha AI Amazon, Flipkart, Snapdeal நேரடி பட்டியல்களை ஒப்பிட்டு எங்கு விற்க வேண்டும் என்றும் இலாப-இழப்புக்குக் கீழ் போகாத விலையையும் சொல்கிறது. எண்களுக்கு அறிக்கையைத் திறக்கவும்.',
-    hinglish: 'Bodha AI Amazon, Flipkart aur Snapdeal ki live listings padhke batata hai kahan bechna hai aur kitna charge karna hai — break-even se neeche kabhi nahi. Numbers ke liye product report kholo.',
+    hinglish:
+      'Bodha AI Amazon, Flipkart aur Snapdeal ki live listings padhke batata hai kahan bechna hai aur kitna charge karna hai — break-even se neeche kabhi nahi. Numbers ke liye product report kholo.',
   });
 }
 
 function compactReport(record: AnalysisRecord): Record<string, unknown> {
-  const winner = record.platforms.find((platform) => platform.id === record.recommendedPlatform) ?? record.platforms[0];
+  const winner =
+    record.platforms.find((platform) => platform.id === record.recommendedPlatform) ??
+    record.platforms[0];
   return {
     title: record.title,
     recommendedPlatform: winner?.name ?? record.recommendedPlatform,
@@ -147,14 +154,23 @@ function compactReport(record: AnalysisRecord): Record<string, unknown> {
   };
 }
 
-function productAnswer(record: AnalysisRecord, query: VoiceQuery, language: SpokenLanguage): string {
+function productAnswer(
+  record: AnalysisRecord,
+  query: VoiceQuery,
+  language: SpokenLanguage,
+): string {
   const lang = toolLanguage(language);
   const text = query.text;
   const title = record.title;
-  const winner = record.platforms.find((platform) => platform.id === record.recommendedPlatform) ?? record.platforms[0];
+  const winner =
+    record.platforms.find((platform) => platform.id === record.recommendedPlatform) ??
+    record.platforms[0];
   const platformName = winner?.name ?? record.recommendedPlatform;
 
-  if (/break.?even|floor|ब्रेक|இலாப-இழப்பு/i.test(text) || /price|charge|how much|kitna|कीमत|விலை|hold|increase|decrease/i.test(text)) {
+  if (
+    /break.?even|floor|ब्रेक|இலாப-இழப்பு/i.test(text) ||
+    /price|charge|how much|kitna|कीमत|விலை|hold|increase|decrease/i.test(text)
+  ) {
     const price = getPriceExplanation(record.productId, lang);
     if (price.available) {
       return say(language, {
@@ -343,7 +359,11 @@ function productAnswer(record: AnalysisRecord, query: VoiceQuery, language: Spok
   return siteAnswer(query, language);
 }
 
-function fallbackAnswer(query: VoiceQuery, record: AnalysisRecord | null, language: SpokenLanguage): string {
+function fallbackAnswer(
+  query: VoiceQuery,
+  record: AnalysisRecord | null,
+  language: SpokenLanguage,
+): string {
   const wantsSite = SITE_ONLY.test(query.text) && !PRODUCT_HINT.test(query.text);
   if (wantsSite) return siteAnswer(query, language);
 
@@ -354,7 +374,11 @@ function fallbackAnswer(query: VoiceQuery, record: AnalysisRecord | null, langua
   return offTopic(language);
 }
 
-function buildPrompt(query: VoiceQuery, record: AnalysisRecord | null, language: SpokenLanguage): string {
+function buildPrompt(
+  query: VoiceQuery,
+  record: AnalysisRecord | null,
+  language: SpokenLanguage,
+): string {
   return [
     'You are Bodha AI, a concise voice guide for Indian sellers.',
     languageInstruction(language),
@@ -369,9 +393,12 @@ function buildPrompt(query: VoiceQuery, record: AnalysisRecord | null, language:
   ].join('\n');
 }
 
-export async function answerVoiceQuery(
-  query: VoiceQuery,
-): Promise<{ answer: string; language: SpokenLanguage; source: 'gemini' | 'fallback'; productId?: string }> {
+export async function answerVoiceQuery(query: VoiceQuery): Promise<{
+  answer: string;
+  language: SpokenLanguage;
+  source: 'gemini' | 'fallback';
+  productId?: string;
+}> {
   const language = resolveReplyLanguage(query.text, query.language ?? 'en');
   const record = resolveRecord(query.context);
 

@@ -6,6 +6,7 @@ import { HttpError } from '../utils/httpError.js';
 export const SESSION_COOKIE = 'bodha_session';
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace -- required shape for augmenting Express's Request type
   namespace Express {
     interface Request {
       user?: UserRecord;

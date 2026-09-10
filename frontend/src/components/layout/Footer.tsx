@@ -23,9 +23,7 @@ export function Footer() {
 
         <nav aria-label="Footer" className="flex gap-12">
           <div className="space-y-2.5">
-            <h2 className="kicker">
-              {t('footer.product')}
-            </h2>
+            <h2 className="kicker">{t('footer.product')}</h2>
             <ul className="space-y-2 text-sm text-ink-muted">
               <li>
                 <Link to="/" className="rounded transition hover:text-brand-700">
@@ -55,9 +53,7 @@ export function Footer() {
           </div>
 
           <div className="space-y-2.5">
-            <h2 className="kicker">
-              {t('footer.marketplaces')}
-            </h2>
+            <h2 className="kicker">{t('footer.marketplaces')}</h2>
             <ul className="space-y-2 text-sm text-ink-muted">
               <li>Amazon</li>
               <li>Flipkart</li>

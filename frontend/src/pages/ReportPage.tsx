@@ -91,8 +91,14 @@ export function ReportPage() {
   return (
     <div className="section-shell py-8 sm:py-12">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
-        <nav aria-label="Breadcrumb" className="flex min-w-0 max-w-full items-center gap-1.5 text-sm text-ink-muted">
-          <Link to="/dashboard" className="shrink-0 rounded font-medium transition hover:text-brand-700">
+        <nav
+          aria-label="Breadcrumb"
+          className="flex min-w-0 max-w-full items-center gap-1.5 text-sm text-ink-muted"
+        >
+          <Link
+            to="/dashboard"
+            className="shrink-0 rounded font-medium transition hover:text-brand-700"
+          >
             {t('report.breadcrumb')}
           </Link>
           <span aria-hidden="true">/</span>
@@ -153,8 +159,8 @@ export function ReportPage() {
             <CompetitorAnalysisPanel
               competitors={insights.competitors}
               platformName={
-                report.platforms.find((platform) => platform.id === insights.competitorPlatform)?.name ??
-                winner.name
+                report.platforms.find((platform) => platform.id === insights.competitorPlatform)
+                  ?.name ?? winner.name
               }
             />
           )}
@@ -169,7 +175,9 @@ export function ReportPage() {
           {section === 'listing' && (
             <OptimizedListingPanel
               listing={report.optimizedListing}
-              complaints={insights.reviewSentiment.available ? insights.reviewSentiment.topComplaints : []}
+              complaints={
+                insights.reviewSentiment.available ? insights.reviewSentiment.topComplaints : []
+              }
             />
           )}
 
@@ -231,9 +239,7 @@ function ProductSummaryCard({
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-ink-muted">{t('report.current')}</dt>
-            <dd className="figure font-medium text-ink">
-              {formatCurrency(analysis.currentPrice)}
-            </dd>
+            <dd className="figure font-medium text-ink">{formatCurrency(analysis.currentPrice)}</dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-ink-muted">{t('report.compared')}</dt>

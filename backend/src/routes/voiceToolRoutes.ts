@@ -51,7 +51,10 @@ function readQuery(req: Request, ...keys: string[]): string {
   return '';
 }
 
-function toolQuery(req: Request): { productId: string; language: ReturnType<typeof parseVoiceToolLanguage> } {
+function toolQuery(req: Request): {
+  productId: string;
+  language: ReturnType<typeof parseVoiceToolLanguage>;
+} {
   return {
     productId: readQuery(req, 'productId', 'product_id'),
     language: parseVoiceToolLanguage(readQuery(req, 'language')),

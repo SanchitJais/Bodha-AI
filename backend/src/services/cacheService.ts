@@ -42,9 +42,7 @@ export function readCache(
   query: string,
 ): CachedListings | null {
   const row = getDatabase()
-    .prepare(
-      `SELECT listingsJson, fetchedAt FROM listing_cache WHERE cacheKey = ?`,
-    )
+    .prepare(`SELECT listingsJson, fetchedAt FROM listing_cache WHERE cacheKey = ?`)
     .get(cacheKey(platformId, category, query)) as CacheRow | undefined;
 
   if (!row) return null;
@@ -122,7 +120,6 @@ function uniqueQueries(title: string): string[] {
 
 export function cacheEntryCount(): number {
   const row = getDatabase().prepare('SELECT COUNT(*) AS n FROM listing_cache').get() as
-    | { n: number }
-    | undefined;
+    { n: number } | undefined;
   return Number(row?.n ?? 0);
 }

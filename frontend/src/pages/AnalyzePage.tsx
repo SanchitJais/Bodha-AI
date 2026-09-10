@@ -124,7 +124,9 @@ export function AnalyzePage() {
               <span className="figure flex h-7 w-7 items-center justify-center text-sm font-medium text-brand-700 ring-1 ring-rule">
                 1
               </span>
-              <h2 className="font-display text-title font-medium text-ink">{t('analyze.details')}</h2>
+              <h2 className="font-display text-title font-medium text-ink">
+                {t('analyze.details')}
+              </h2>
             </div>
 
             <ImageUpload value={values.imageUrl} onChange={handleImageChange} />
@@ -151,7 +153,9 @@ export function AnalyzePage() {
                   {t('analyze.copyModeManual')}
                 </label>
               </div>
-              {insightBusy && <p className="mt-2 text-sm text-brand-700">{t('analyze.insightBusy')}</p>}
+              {insightBusy && (
+                <p className="mt-2 text-sm text-brand-700">{t('analyze.insightBusy')}</p>
+              )}
               {insightError && (
                 <p role="alert" className="mt-2 text-sm font-medium text-danger-600">
                   {insightError}
@@ -226,7 +230,9 @@ export function AnalyzePage() {
                   2
                 </span>
                 <div>
-                  <h2 className="font-display text-title font-medium text-ink">{t('analyze.economics')}</h2>
+                  <h2 className="font-display text-title font-medium text-ink">
+                    {t('analyze.economics')}
+                  </h2>
                   <p className="mt-1 text-sm text-ink-muted">{t('analyze.economicsHint')}</p>
                 </div>
               </div>
@@ -293,7 +299,9 @@ export function AnalyzePage() {
                 <span className="figure flex h-7 w-7 items-center justify-center text-sm font-medium text-brand-700 ring-1 ring-rule">
                   3
                 </span>
-                <h2 className="font-display text-title font-medium text-ink">{t('analyze.platforms')}</h2>
+                <h2 className="font-display text-title font-medium text-ink">
+                  {t('analyze.platforms')}
+                </h2>
               </div>
               <PlatformChips
                 platforms={meta?.platforms ?? []}
@@ -328,16 +336,17 @@ export function AnalyzePage() {
         <aside className="hidden border-l border-rule pl-6 pt-1 lg:sticky lg:top-24 lg:block">
           <h2 className="kicker">{t('analyze.methodTitle')}</h2>
           <ol className="mt-4 space-y-4">
-            {[t('analyze.method1'), t('analyze.method2'), t('analyze.method3'), t('analyze.method4')].map(
-              (item, index) => (
-                <li key={item} className="flex gap-3 text-sm leading-relaxed text-ink-muted">
-                  <span className="figure mt-0.5 w-4 shrink-0 text-[11px] text-ink">
-                    {index + 1}
-                  </span>
-                  {item}
-                </li>
-              ),
-            )}
+            {[
+              t('analyze.method1'),
+              t('analyze.method2'),
+              t('analyze.method3'),
+              t('analyze.method4'),
+            ].map((item, index) => (
+              <li key={item} className="flex gap-3 text-sm leading-relaxed text-ink-muted">
+                <span className="figure mt-0.5 w-4 shrink-0 text-[11px] text-ink">{index + 1}</span>
+                {item}
+              </li>
+            ))}
           </ol>
         </aside>
       </form>

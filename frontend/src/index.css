@@ -24,7 +24,8 @@
   }
 
   html.native-app body {
-    font-family: system-ui, 'Roboto', 'Noto Sans', 'Noto Sans Devanagari', 'Noto Sans Tamil', sans-serif;
+    font-family:
+      system-ui, 'Roboto', 'Noto Sans', 'Noto Sans Devanagari', 'Noto Sans Tamil', sans-serif;
   }
 
   html.native-app .font-display {
@@ -49,7 +50,9 @@
 
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #f3efe6, 0 0 0 4px #0d6b4c;
+    box-shadow:
+      0 0 0 2px #f3efe6,
+      0 0 0 4px #0d6b4c;
   }
 
   input[type='number']::-webkit-outer-spin-button,
@@ -109,7 +112,9 @@
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
     color: #141814;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   .field::placeholder {

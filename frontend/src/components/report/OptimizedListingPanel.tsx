@@ -44,9 +44,7 @@ export function OptimizedListingPanel({ listing, complaints = [] }: OptimizedLis
         </ListingBlock>
 
         <ListingBlock label={t('report.listingKwLabel')} copyValue={listing.keywords.join(', ')}>
-          <p className="text-sm leading-relaxed text-ink">
-            {listing.keywords.join(' · ')}
-          </p>
+          <p className="text-sm leading-relaxed text-ink">{listing.keywords.join(' · ')}</p>
         </ListingBlock>
       </div>
     </section>

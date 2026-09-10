@@ -37,10 +37,7 @@ export async function generateText(prompt: string): Promise<string> {
 }
 
 /** Ask Gemini to look at an image and return JSON. */
-export async function generateVisionJson<T>(
-  imageDataUrl: string,
-  prompt: string,
-): Promise<T> {
+export async function generateVisionJson<T>(imageDataUrl: string, prompt: string): Promise<T> {
   const parsed = parseDataUrl(imageDataUrl);
   if (!parsed) {
     throw new GeminiError('Image was not a usable data URL');
@@ -79,7 +76,9 @@ async function generateContent(parts: GeminiRequestPart[]): Promise<string> {
 
     const body = (await response.json()) as GeminiResponse;
     if (!response.ok) {
-      throw new GeminiError(body.error?.message ?? 'Gemini request failed (' + response.status + ')');
+      throw new GeminiError(
+        body.error?.message ?? 'Gemini request failed (' + response.status + ')',
+      );
     }
 
     const text = body.candidates?.[0]?.content?.parts

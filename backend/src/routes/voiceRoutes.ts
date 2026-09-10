@@ -24,33 +24,39 @@ const querySchema = z.object({
     .optional(),
 });
 
-voiceRoutes.get('/session', async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    res.json(await createVoiceSession());
-  } catch (error) {
-    next(error);
-  }
-});
-
-voiceRoutes.post('/query', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const parsed = querySchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw HttpError.badRequest('Ask a short question about Bodha AI or this report.');
+voiceRoutes.get(
+  '/session',
+  async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.json(await createVoiceSession());
+    } catch (error) {
+      next(error);
     }
+  },
+);
 
-    const result = await answerVoiceQuery({
-      text: parsed.data.text,
-      language: parsed.data.language,
-      context: {
-        ...parsed.data.context,
-        authenticated: Boolean(req.user),
-        sellerId: req.user?.id,
-      },
-    });
+voiceRoutes.post(
+  '/query',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parsed = querySchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw HttpError.badRequest('Ask a short question about Bodha AI or this report.');
+      }
 
-    res.json({ answer: result.answer, language: result.language, source: result.source });
-  } catch (error) {
-    next(error);
-  }
-});
+      const result = await answerVoiceQuery({
+        text: parsed.data.text,
+        language: parsed.data.language,
+        context: {
+          ...parsed.data.context,
+          authenticated: Boolean(req.user),
+          sellerId: req.user?.id,
+        },
+      });
+
+      res.json({ answer: result.answer, language: result.language, source: result.source });
+    } catch (error) {
+      next(error);
+    }
+  },
+);

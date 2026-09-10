@@ -49,14 +49,15 @@ function readBoolean(key: string, fallback: boolean): boolean {
 
 export const env = {
   port: readNumber('PORT', 4000),
-  corsOrigins: (process.env.CORS_ORIGIN ??
-    'http://localhost:5173,http://localhost:4000,https://localhost,capacitor://localhost')
+  corsOrigins: (
+    process.env.CORS_ORIGIN ??
+    'http://localhost:5173,http://localhost:4000,https://localhost,capacitor://localhost'
+  )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
   databasePath:
-    process.env.DATABASE_PATH ??
-    (process.env.VERCEL ? '/tmp/bodha.db' : './data/bodha.db'),
+    process.env.DATABASE_PATH ?? (process.env.VERCEL ? '/tmp/bodha.db' : './data/bodha.db'),
   /** Empty in the demo - the rule-based listing optimizer is used instead. */
   llmApiKey: process.env.LLM_API_KEY ?? '',
   llmModel: process.env.LLM_MODEL ?? 'claude-sonnet-5',

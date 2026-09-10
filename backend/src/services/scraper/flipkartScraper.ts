@@ -44,16 +44,20 @@ export class FlipkartScraper implements MarketplaceScraper {
       extract: async (page) => {
         const origin = ORIGIN;
         const max = env.scrapeMaxResults;
-        const raw = await page.$$eval(CARD, (cards, cap) => {
-          return cards.slice(0, cap).map((card) => {
-            const img = card.querySelector('img[alt]') as HTMLImageElement | null;
-            const title = (img?.alt ?? '').replace(/\s+/g, ' ').trim();
-            const link = card.querySelector('a[href*="/p/"]') as HTMLAnchorElement | null;
-            const href = link?.getAttribute('href') ?? '';
-            const text = (card.textContent ?? '').replace(/\s+/g, ' ').trim();
-            return { title, href, text, thumbnail: img?.src ?? '' };
-          });
-        }, max);
+        const raw = await page.$$eval(
+          CARD,
+          (cards, cap) => {
+            return cards.slice(0, cap).map((card) => {
+              const img = card.querySelector('img[alt]') as HTMLImageElement | null;
+              const title = (img?.alt ?? '').replace(/\s+/g, ' ').trim();
+              const link = card.querySelector('a[href*="/p/"]') as HTMLAnchorElement | null;
+              const href = link?.getAttribute('href') ?? '';
+              const text = (card.textContent ?? '').replace(/\s+/g, ' ').trim();
+              return { title, href, text, thumbnail: img?.src ?? '' };
+            });
+          },
+          max,
+        );
 
         for (const row of raw) {
           if (!row.title || !row.href) continue;

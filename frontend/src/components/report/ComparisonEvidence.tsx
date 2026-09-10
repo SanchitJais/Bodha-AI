@@ -17,16 +17,25 @@ function profitComponent(platform: PlatformRecommendation): number {
 }
 
 function reconstructedFit(platform: PlatformRecommendation): number {
-  return 0.4 * profitComponent(platform) + 0.3 * (100 - platform.competitionIndex) + 0.3 * platform.demandIndex;
+  return (
+    0.4 * profitComponent(platform) +
+    0.3 * (100 - platform.competitionIndex) +
+    0.3 * platform.demandIndex
+  );
 }
 
-function vsRangeKey(price: number, range: [number, number]): 'sellerVsRangeBelow' | 'sellerVsRangeWithin' | 'sellerVsRangeAbove' {
+function vsRangeKey(
+  price: number,
+  range: [number, number],
+): 'sellerVsRangeBelow' | 'sellerVsRangeWithin' | 'sellerVsRangeAbove' {
   if (price < range[0]) return 'sellerVsRangeBelow';
   if (price > range[1]) return 'sellerVsRangeAbove';
   return 'sellerVsRangeWithin';
 }
 
-function adviceKey(action: PriceAction): 'priceAdviceIncrease' | 'priceAdviceDecrease' | 'priceAdviceHold' {
+function adviceKey(
+  action: PriceAction,
+): 'priceAdviceIncrease' | 'priceAdviceDecrease' | 'priceAdviceHold' {
   if (action === 'increase') return 'priceAdviceIncrease';
   if (action === 'decrease') return 'priceAdviceDecrease';
   return 'priceAdviceHold';
@@ -63,7 +72,9 @@ export function ComparisonEvidence({
       reasons.push(t('report.evidenceReasonListings', { count: winner.listingCount }));
     }
     if (winner.feePercent < runner.feePercent) {
-      reasons.push(t('report.evidenceReasonFee', { percent: (winner.feePercent * 100).toFixed(1) }));
+      reasons.push(
+        t('report.evidenceReasonFee', { percent: (winner.feePercent * 100).toFixed(1) }),
+      );
     }
   }
   if (winner.lossRiskAvoided) {
@@ -119,7 +130,9 @@ export function ComparisonEvidence({
                 : t('report.profitUnit') + ' ' + formatCurrencyPrecise(winner.estimatedProfit)}
             </li>
             <li>
-              {t('report.' + adviceKey(winner.priceAction), { price: formatCurrency(currentPrice) })}
+              {t('report.' + adviceKey(winner.priceAction), {
+                price: formatCurrency(currentPrice),
+              })}
             </li>
           </ul>
 
@@ -171,7 +184,10 @@ export function ComparisonEvidence({
             <ul className="mt-4 space-y-2">
               {reasons.map((reason) => (
                 <li key={reason} className="flex gap-2 text-sm text-ink">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" aria-hidden="true" />
+                  <span
+                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500"
+                    aria-hidden="true"
+                  />
                   {reason}
                 </li>
               ))}
@@ -223,7 +239,9 @@ function MarketplaceMatchCard({
         )}
       </p>
       {unavailable ? (
-        <p className="mt-1 text-xs leading-relaxed text-ink-muted">{t('report.marketDataMissing')}</p>
+        <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+          {t('report.marketDataMissing')}
+        </p>
       ) : (
         <ul className="mt-1 space-y-1 text-xs text-ink-muted">
           <li>{t('report.evidenceMedian', { price: formatCurrency(platform.marketPrice) })}</li>

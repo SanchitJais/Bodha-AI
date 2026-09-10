@@ -176,7 +176,10 @@ export function calculateEstimatedProfit(
   avgShippingFee: number,
 ): number {
   return (
-    sellingPrice - sellingPrice * effectiveFeePercent(feePercent) - avgShippingFee - manufacturingCost
+    sellingPrice -
+    sellingPrice * effectiveFeePercent(feePercent) -
+    avgShippingFee -
+    manufacturingCost
   );
 }
 
@@ -264,8 +267,7 @@ function buildExplanation(params: ExplanationParams): string {
     listingCount,
   } = params;
 
-  const sampleNote =
-    listingCount > 0 ? ' (median of ' + listingCount + ' live listings)' : '';
+  const sampleNote = listingCount > 0 ? ' (median of ' + listingCount + ' live listings)' : '';
   const profitAtYourPrice =
     'At your ' +
     inr(currentPrice) +

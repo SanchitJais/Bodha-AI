@@ -5,10 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  COMPETITION_RESULT_CAP,
-  listingsToSnapshot,
-} from '../services/snapshotFromListings.js';
+import { COMPETITION_RESULT_CAP, listingsToSnapshot } from '../services/snapshotFromListings.js';
 import type { ComparableListing } from '../types/index.js';
 
 function listing(price: number, extras: Partial<ComparableListing> = {}): ComparableListing {

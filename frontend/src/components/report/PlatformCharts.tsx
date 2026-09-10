@@ -55,9 +55,7 @@ export function PlatformCharts({ platforms }: PlatformChartsProps) {
 
   if (available.length === 0) {
     return (
-      <p className="border-t border-rule pt-4 text-sm text-ink-muted">
-        {t('report.chartsNeed')}
-      </p>
+      <p className="border-t border-rule pt-4 text-sm text-ink-muted">{t('report.chartsNeed')}</p>
     );
   }
 
@@ -152,7 +150,12 @@ function HorizontalBars({ data, dataKey, domain, formatValue }: HorizontalBarsPr
               position="right"
               offset={10}
               formatter={(value: number) => formatValue(value)}
-              style={{ fill: '#141814', fontSize: 12, fontWeight: 500, fontFamily: 'IBM Plex Mono, ui-monospace, monospace' }}
+              style={{
+                fill: '#141814',
+                fontSize: 12,
+                fontWeight: 500,
+                fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
+              }}
             />
           </Bar>
         </BarChart>
@@ -176,11 +179,7 @@ function ChartTooltip({ active, payload, formatValue, dataKey }: ChartTooltipPro
   return (
     <div className="border border-rule bg-[#faf8f3] px-3 py-2">
       <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
-        <span
-          className="h-2.5 w-2.5"
-          style={{ backgroundColor: datum.color }}
-          aria-hidden="true"
-        />
+        <span className="h-2.5 w-2.5" style={{ backgroundColor: datum.color }} aria-hidden="true" />
         {datum.name}
       </p>
       <p className="mt-0.5 text-xs text-ink-muted">

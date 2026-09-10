@@ -8,12 +8,17 @@ interface CompetitorAnalysisPanelProps {
   platformName: string;
 }
 
-export function CompetitorAnalysisPanel({ competitors, platformName }: CompetitorAnalysisPanelProps) {
+export function CompetitorAnalysisPanel({
+  competitors,
+  platformName,
+}: CompetitorAnalysisPanelProps) {
   const { t } = useTranslation();
 
   if (competitors.length === 0) {
     return (
-      <p className="border-t border-rule pt-6 text-sm text-ink-muted">{t('report.competitorsEmpty')}</p>
+      <p className="border-t border-rule pt-6 text-sm text-ink-muted">
+        {t('report.competitorsEmpty')}
+      </p>
     );
   }
 
@@ -26,7 +31,10 @@ export function CompetitorAnalysisPanel({ competitors, platformName }: Competito
 
       <ul className="mt-6 divide-y divide-rule border-y border-rule">
         {competitors.map((competitor) => (
-          <li key={competitor.url + competitor.title} className="grid gap-4 py-6 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
+          <li
+            key={competitor.url + competitor.title}
+            className="grid gap-4 py-6 sm:grid-cols-[5.5rem_minmax(0,1fr)]"
+          >
             {competitor.thumbnail ? (
               <img
                 src={competitor.thumbnail}
@@ -45,17 +53,19 @@ export function CompetitorAnalysisPanel({ competitors, platformName }: Competito
             )}
 
             <div>
-              <h3 className="break-words font-display text-base font-medium text-ink">{competitor.title}</h3>
+              <h3 className="break-words font-display text-base font-medium text-ink">
+                {competitor.title}
+              </h3>
               <p className="figure mt-1 text-sm text-ink">
                 {formatCurrency(competitor.price)}
                 {competitor.rating != null && (
-                  <span className="text-ink-muted">
-                    {' '}
-                    · {competitor.rating.toFixed(1)}
-                  </span>
+                  <span className="text-ink-muted"> · {competitor.rating.toFixed(1)}</span>
                 )}
                 {competitor.reviewCount != null && (
-                  <span className="text-ink-muted"> · {competitor.reviewCount.toLocaleString('en-IN')}</span>
+                  <span className="text-ink-muted">
+                    {' '}
+                    · {competitor.reviewCount.toLocaleString('en-IN')}
+                  </span>
                 )}
               </p>
 

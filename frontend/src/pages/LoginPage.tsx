@@ -36,7 +36,9 @@ export function LoginPage() {
   return (
     <div className="section-shell max-w-lg py-8 sm:py-14">
       <p className="kicker">{t('auth.loginKicker')}</p>
-      <h1 className="mt-2 font-display text-headline font-medium text-ink">{t('auth.loginTitle')}</h1>
+      <h1 className="mt-2 font-display text-headline font-medium text-ink">
+        {t('auth.loginTitle')}
+      </h1>
       <p className="mt-3 text-sm text-ink-muted">{t('auth.loginLead')}</p>
 
       <form onSubmit={(event) => void handleSubmit(event)} className="mt-8 space-y-5">

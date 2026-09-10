@@ -53,7 +53,11 @@ export function DataFreshnessBadge({ freshness, lastUpdated, compact }: DataFres
       <span
         className={
           'h-1.5 w-1.5 ' +
-          (freshness === 'live' ? 'bg-profit-600' : freshness === 'cached' ? 'bg-brand-600' : 'bg-ink-muted')
+          (freshness === 'live'
+            ? 'bg-profit-600'
+            : freshness === 'cached'
+              ? 'bg-brand-600'
+              : 'bg-ink-muted')
         }
         aria-hidden="true"
       />

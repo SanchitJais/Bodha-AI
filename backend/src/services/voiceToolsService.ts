@@ -100,7 +100,10 @@ export function parseVoiceToolLanguage(value: unknown): VoiceToolLanguage {
   return value === 'hi' || value === 'ta' ? value : 'en';
 }
 
-function unavailable(language: VoiceToolLanguage, key: keyof (typeof COPY)['en']): VoiceToolUnavailable {
+function unavailable(
+  language: VoiceToolLanguage,
+  key: keyof (typeof COPY)['en'],
+): VoiceToolUnavailable {
   return { available: false, message: COPY[language][key] };
 }
 
@@ -111,7 +114,11 @@ function loadRecord(productId: string): AnalysisRecord | null {
 }
 
 function winnerOf(record: AnalysisRecord): PlatformRecommendation | null {
-  return record.platforms.find((platform) => platform.id === record.recommendedPlatform) ?? record.platforms[0] ?? null;
+  return (
+    record.platforms.find((platform) => platform.id === record.recommendedPlatform) ??
+    record.platforms[0] ??
+    null
+  );
 }
 
 export function getReportSummary(
@@ -167,7 +174,9 @@ export function getCompetitorAnalysis(
   const record = loadRecord(productId);
   if (!record) return unavailable(language, 'noProduct');
 
-  const stored = record.insights.competitors.filter((card) => card.title && Number.isFinite(card.price));
+  const stored = record.insights.competitors.filter(
+    (card) => card.title && Number.isFinite(card.price),
+  );
   if (stored.length === 0) return unavailable(language, 'noCompetitors');
 
   const cards =
@@ -207,7 +216,10 @@ export function getReviewSentiment(
   if (!record) return unavailable(language, 'noProduct');
 
   const sentiment = record.insights.reviewSentiment;
-  if (!sentiment.available || (sentiment.topPraises.length === 0 && sentiment.topComplaints.length === 0)) {
+  if (
+    !sentiment.available ||
+    (sentiment.topPraises.length === 0 && sentiment.topComplaints.length === 0)
+  ) {
     return unavailable(language, 'noReviews');
   }
 

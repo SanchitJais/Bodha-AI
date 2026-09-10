@@ -85,7 +85,13 @@ async function loadRobots(origin: string): Promise<RobotsRules | null> {
       headers: { 'User-Agent': env.scrapeUserAgent },
     });
     if (!response.ok) {
-      console.warn('[bodha-ai] robots.txt HTTP ' + response.status + ' for ' + origin + ' — proceeding with a warning');
+      console.warn(
+        '[bodha-ai] robots.txt HTTP ' +
+          response.status +
+          ' for ' +
+          origin +
+          ' — proceeding with a warning',
+      );
       return null;
     }
     const rules = parseRobots(await response.text());

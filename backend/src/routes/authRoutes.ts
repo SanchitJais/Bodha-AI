@@ -4,11 +4,7 @@ import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 
-import {
-  clearSessionCookie,
-  requireUser,
-  sessionCookie,
-} from '../middleware/auth.js';
+import { clearSessionCookie, requireUser, sessionCookie } from '../middleware/auth.js';
 import {
   createSession,
   createUser,
@@ -113,16 +109,20 @@ const onboardingSchema = z.object({
   ]),
 });
 
-authRoutes.post('/onboarding', requireUser, (req: Request, res: Response, next: NextFunction): void => {
-  try {
-    const parsed = onboardingSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw HttpError.badRequest('Tell us your store name, city and main category');
+authRoutes.post(
+  '/onboarding',
+  requireUser,
+  (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      const parsed = onboardingSchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw HttpError.badRequest('Tell us your store name, city and main category');
+      }
+      const user = saveStoreProfile(req.user!.id, parsed.data);
+      req.user = user;
+      res.json({ user: publicUser(req) });
+    } catch (error) {
+      next(error);
     }
-    const user = saveStoreProfile(req.user!.id, parsed.data);
-    req.user = user;
-    res.json({ user: publicUser(req) });
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);

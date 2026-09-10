@@ -107,7 +107,9 @@ export function PricingPage() {
 
         <article className="border border-ink/20 bg-[#faf8f3] p-6">
           <h2 className="font-display text-title font-medium text-ink">{t('billing.proName')}</h2>
-          <p className="figure mt-2 text-3xl text-ink">$10<span className="text-base text-ink-muted">/{t('billing.month')}</span></p>
+          <p className="figure mt-2 text-3xl text-ink">
+            $10<span className="text-base text-ink-muted">/{t('billing.month')}</span>
+          </p>
           <p className="mt-2 text-sm text-ink-muted">{t('billing.proLead')}</p>
           <ul className="mt-4 space-y-2 text-sm text-ink">
             <li>{t('billing.pro1')}</li>

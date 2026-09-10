@@ -268,7 +268,9 @@ export function filterRelevantListings(
         : 0;
 
   if (anchor > 0 && kept.length > 0) {
-    const banded = kept.filter((listing) => listing.price >= anchor * 0.4 && listing.price <= anchor * 2.5);
+    const banded = kept.filter(
+      (listing) => listing.price >= anchor * 0.4 && listing.price <= anchor * 2.5,
+    );
     if (banded.length > 0) kept = banded;
   }
 

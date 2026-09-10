@@ -4,7 +4,11 @@
  * base-URL resolution and JSON parsing stay in one place.
  */
 
-import { clearNativeSessionToken, getNativeSessionToken, saveNativeSessionToken } from '@native/session';
+import {
+  clearNativeSessionToken,
+  getNativeSessionToken,
+  saveNativeSessionToken,
+} from '@native/session';
 import { sharePdfBlob } from '@native/share';
 
 import type {
@@ -142,7 +146,11 @@ export const api = {
     });
   },
 
-  async signup(payload: { email: string; password: string; name: string }): Promise<{ user: AuthUser }> {
+  async signup(payload: {
+    email: string;
+    password: string;
+    name: string;
+  }): Promise<{ user: AuthUser }> {
     const result = await request<{ user: AuthUser; token?: string }>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(payload),

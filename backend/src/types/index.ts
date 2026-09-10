@@ -9,11 +9,7 @@
 export type PlatformId = 'amazon' | 'flipkart' | 'snapdeal' | 'alibaba';
 
 export type CategoryId =
-  | 'electronics-accessories'
-  | 'apparel'
-  | 'home-kitchen'
-  | 'beauty-personal-care'
-  | 'toys';
+  'electronics-accessories' | 'apparel' | 'home-kitchen' | 'beauty-personal-care' | 'toys';
 
 export type IndexLevel = 'Low' | 'Medium' | 'High';
 

@@ -25,8 +25,7 @@ const ORIGIN = 'https://www.snapdeal.com';
 const CARD = '.product-tuple-listing';
 
 function buildSearchUrl(query: string): { url: string; pathWithQuery: string } {
-  const pathWithQuery =
-    '/search?keyword=' + encodeURIComponent(query) + '&sort=rlvncy';
+  const pathWithQuery = '/search?keyword=' + encodeURIComponent(query) + '&sort=rlvncy';
   return { url: ORIGIN + pathWithQuery, pathWithQuery };
 }
 
@@ -46,26 +45,29 @@ export class SnapdealScraper implements MarketplaceScraper {
       resultSelector: CARD,
       extract: async (page) => {
         const max = env.scrapeMaxResults;
-        const raw = await page.$$eval(CARD, (cards, cap) => {
-          return cards.slice(0, cap).map((card) => {
-            const titleEl = card.querySelector('.product-title');
-            const title =
-              (titleEl?.getAttribute('title') ?? titleEl?.textContent ?? '')
+        const raw = await page.$$eval(
+          CARD,
+          (cards, cap) => {
+            return cards.slice(0, cap).map((card) => {
+              const titleEl = card.querySelector('.product-title');
+              const title = (titleEl?.getAttribute('title') ?? titleEl?.textContent ?? '')
                 .replace(/\s+/g, ' ')
                 .trim();
-            const priceEl = card.querySelector('.product-price');
-            const priceAttr = priceEl?.getAttribute('data-price') ?? priceEl?.textContent ?? '';
-            const reviewEl = card.querySelector('.product-rating-count');
-            const reviewText = reviewEl?.textContent ?? '';
-            const filled = card.querySelector('.filled-stars') as HTMLElement | null;
-            const width = filled?.style.width ?? '';
-            const link = card.querySelector('a.dp-widget-link') as HTMLAnchorElement | null;
-            const href = link?.getAttribute('href') ?? '';
-            const img = card.querySelector('img') as HTMLImageElement | null;
-            const thumbnail = img?.getAttribute('src') || img?.getAttribute('data-src') || '';
-            return { title, priceAttr, reviewText, width, href, thumbnail };
-          });
-        }, max);
+              const priceEl = card.querySelector('.product-price');
+              const priceAttr = priceEl?.getAttribute('data-price') ?? priceEl?.textContent ?? '';
+              const reviewEl = card.querySelector('.product-rating-count');
+              const reviewText = reviewEl?.textContent ?? '';
+              const filled = card.querySelector('.filled-stars') as HTMLElement | null;
+              const width = filled?.style.width ?? '';
+              const link = card.querySelector('a.dp-widget-link') as HTMLAnchorElement | null;
+              const href = link?.getAttribute('href') ?? '';
+              const img = card.querySelector('img') as HTMLImageElement | null;
+              const thumbnail = img?.getAttribute('src') || img?.getAttribute('data-src') || '';
+              return { title, priceAttr, reviewText, width, href, thumbnail };
+            });
+          },
+          max,
+        );
 
         for (const row of raw) {
           if (!row.title) continue;
@@ -73,7 +75,9 @@ export class SnapdealScraper implements MarketplaceScraper {
           if (!Number.isFinite(price) || price <= 0) continue;
 
           const widthMatch = String(row.width).match(/(\d+(?:\.\d+)?)/);
-          const rating = widthMatch ? Math.round((Number(widthMatch[1]) / 20) * 10) / 10 : undefined;
+          const rating = widthMatch
+            ? Math.round((Number(widthMatch[1]) / 20) * 10) / 10
+            : undefined;
 
           listings.push({
             title: row.title,

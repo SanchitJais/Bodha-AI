@@ -99,7 +99,13 @@ export function createUser(input: {
   db.prepare(
     `INSERT INTO users (id, email, passwordHash, displayName, plan, planExpiresAt, createdAt)
      VALUES (?, ?, ?, ?, 'free', NULL, ?)`,
-  ).run(input.id, input.email.toLowerCase().trim(), hashPassword(input.password), input.displayName, createdAt);
+  ).run(
+    input.id,
+    input.email.toLowerCase().trim(),
+    hashPassword(input.password),
+    input.displayName,
+    createdAt,
+  );
 
   return {
     id: input.id,
@@ -120,7 +126,13 @@ export function saveStoreProfile(userId: string, profile: StoreProfile): UserRec
     .prepare(
       `UPDATE users SET storeName = ?, storeCity = ?, storeCategory = ?, onboardedAt = ? WHERE id = ?`,
     )
-    .run(profile.storeName, profile.storeCity, profile.storeCategory, new Date().toISOString(), userId);
+    .run(
+      profile.storeName,
+      profile.storeCity,
+      profile.storeCategory,
+      new Date().toISOString(),
+      userId,
+    );
   const user = findUserById(userId);
   if (!user) throw new Error('User missing after onboarding');
   return user;
@@ -135,7 +147,8 @@ export function findUserByEmail(email: string): (UserRecord & { passwordHash: st
 }
 
 export function findUserById(id: string): UserRecord | null {
-  const row = getDatabase().prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined;
+  const row = getDatabase().prepare('SELECT * FROM users WHERE id = ?').get(id) as
+    UserRow | undefined;
   return row ? toUser(row) : null;
 }
 

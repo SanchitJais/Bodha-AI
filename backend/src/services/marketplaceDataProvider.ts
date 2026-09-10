@@ -31,7 +31,12 @@ export interface MarketData {
   listings: Partial<Record<PlatformId, ComparableListing[]>>;
 }
 
-export { listingsToSnapshot, emptySnapshot, DEMAND_REVIEW_SATURATION, COMPETITION_RESULT_CAP } from './snapshotFromListings.js';
+export {
+  listingsToSnapshot,
+  emptySnapshot,
+  DEMAND_REVIEW_SATURATION,
+  COMPETITION_RESULT_CAP,
+} from './snapshotFromListings.js';
 
 function prepareListings(
   listings: ComparableListing[],
@@ -87,7 +92,9 @@ async function dataForPlatform(
       );
       return prepared;
     }
-    console.log('[bodha-ai] cache HIT but 0 matched listings for "' + title + '" — re-scraping ' + platformId);
+    console.log(
+      '[bodha-ai] cache HIT but 0 matched listings for "' + title + '" — re-scraping ' + platformId,
+    );
   }
 
   try {
@@ -143,9 +150,9 @@ export async function getMarketData(request: SnapshotRequest): Promise<MarketDat
 }
 
 /** Fetch a snapshot for every requested marketplace, in parallel across hosts. */
-export async function getMarketSnapshots(request: SnapshotRequest): Promise<
-  Record<PlatformId, MarketSnapshot>
-> {
+export async function getMarketSnapshots(
+  request: SnapshotRequest,
+): Promise<Record<PlatformId, MarketSnapshot>> {
   return (await getMarketData(request)).snapshots;
 }
 

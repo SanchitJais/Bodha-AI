@@ -114,11 +114,16 @@ export function HomePage() {
 
           <dl className="mt-14 grid grid-cols-3 divide-x divide-rule border-y border-rule">
             {stats.map((stat) => (
-              <div key={stat.label} className="border-rule px-2 py-6 first:pl-0 last:pr-0 sm:px-8 sm:first:pl-0">
+              <div
+                key={stat.label}
+                className="border-rule px-2 py-6 first:pl-0 last:pr-0 sm:px-8 sm:first:pl-0"
+              >
                 <dt className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
                   {stat.label}
                 </dt>
-                <dd className="figure mt-2 text-3xl font-medium text-ink sm:text-4xl">{stat.value}</dd>
+                <dd className="figure mt-2 text-3xl font-medium text-ink sm:text-4xl">
+                  {stat.value}
+                </dd>
               </div>
             ))}
           </dl>
@@ -133,7 +138,10 @@ export function HomePage() {
 
         <ol className="mt-10 divide-y divide-rule border-y border-rule">
           {method.map((item) => (
-            <li key={item.title} className="grid gap-3 py-7 sm:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)] sm:gap-10">
+            <li
+              key={item.title}
+              className="grid gap-3 py-7 sm:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)] sm:gap-10"
+            >
               <h3 className="font-display text-lg font-medium text-ink">{item.title}</h3>
               <p className="text-sm leading-relaxed text-ink-muted sm:text-base">{item.body}</p>
             </li>
@@ -144,8 +152,12 @@ export function HomePage() {
       <section className="border-y border-rule bg-[#faf8f3]">
         <div className="section-shell py-16 sm:py-20">
           <div className="max-w-2xl">
-            <h2 className="font-display text-headline font-medium text-ink">{t('home.featuresTitle')}</h2>
-            <p className="mt-3 text-base leading-relaxed text-ink-muted">{t('home.featuresLead')}</p>
+            <h2 className="font-display text-headline font-medium text-ink">
+              {t('home.featuresTitle')}
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-ink-muted">
+              {t('home.featuresLead')}
+            </p>
           </div>
 
           <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-0 md:divide-x md:divide-rule">
@@ -163,8 +175,12 @@ export function HomePage() {
                 >
                   {feature.icon}
                 </svg>
-                <h3 className="mt-4 font-display text-title font-medium text-ink">{feature.title}</h3>
-                <p className="mt-2.5 text-sm leading-relaxed text-ink-muted">{feature.description}</p>
+                <h3 className="mt-4 font-display text-title font-medium text-ink">
+                  {feature.title}
+                </h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-ink-muted">
+                  {feature.description}
+                </p>
               </article>
             ))}
           </div>
@@ -178,11 +194,15 @@ export function HomePage() {
         </div>
         <div className="mt-10 grid gap-8 md:grid-cols-2">
           <article className="border-t border-rule pt-5">
-            <h3 className="font-display text-title font-medium text-ink">{t('home.seoWhoTitle')}</h3>
+            <h3 className="font-display text-title font-medium text-ink">
+              {t('home.seoWhoTitle')}
+            </h3>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t('home.seoWhoBody')}</p>
           </article>
           <article className="border-t border-rule pt-5">
-            <h3 className="font-display text-title font-medium text-ink">{t('home.seoWhereTitle')}</h3>
+            <h3 className="font-display text-title font-medium text-ink">
+              {t('home.seoWhereTitle')}
+            </h3>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t('home.seoWhereBody')}</p>
           </article>
         </div>
@@ -190,7 +210,9 @@ export function HomePage() {
 
       <section className="border-y border-rule bg-[#faf8f3]">
         <div className="section-shell py-16 sm:py-20">
-          <h2 className="font-display text-headline font-medium text-ink">{t('home.pricingTitle')}</h2>
+          <h2 className="font-display text-headline font-medium text-ink">
+            {t('home.pricingTitle')}
+          </h2>
           <p className="mt-3 max-w-2xl text-base text-ink-muted">{t('home.pricingLead')}</p>
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             <div className="border border-rule bg-paper p-6">
@@ -202,7 +224,10 @@ export function HomePage() {
               <p className="kicker">{t('billing.proName')}</p>
               <p className="mt-2 font-display text-2xl text-ink">{t('home.pricingPro')}</p>
               <p className="mt-2 text-sm text-ink-muted">{t('billing.proLead')}</p>
-              <Link to="/pricing" className="mt-4 inline-flex text-sm font-medium text-brand-700 underline underline-offset-4">
+              <Link
+                to="/pricing"
+                className="mt-4 inline-flex text-sm font-medium text-brand-700 underline underline-offset-4"
+              >
                 {t('home.pricingCta')}
               </Link>
             </div>

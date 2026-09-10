@@ -32,7 +32,10 @@ export async function collectReviewSnippets(
   platformId: PlatformId,
   listings: ComparableListing[],
 ): Promise<string[]> {
-  const urls = listings.map((listing) => listing.url).filter(Boolean).slice(0, 5);
+  const urls = listings
+    .map((listing) => listing.url)
+    .filter(Boolean)
+    .slice(0, 5);
   if (urls.length === 0) return [];
 
   const started = Date.now();

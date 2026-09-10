@@ -12,7 +12,12 @@ import type { NextFunction, Request, Response } from 'express';
 import { requireUser } from '../middleware/auth.js';
 import { creditStatus } from '../models/userRepository.js';
 import { inferListingFromPhoto } from '../services/autoInsightService.js';
-import { createAnalysis, getAnalysis, getAnalysisOwner, getHistory } from '../services/analysisService.js';
+import {
+  createAnalysis,
+  getAnalysis,
+  getAnalysisOwner,
+  getHistory,
+} from '../services/analysisService.js';
 import { renderReportPdf, reportPdfFilename } from '../services/pdfReport.js';
 import { HttpError } from '../utils/httpError.js';
 import { parseAnalyzeRequest, parseInsightRequest } from '../utils/validation.js';
@@ -55,13 +60,17 @@ productRoutes.post(
   },
 );
 
-productRoutes.get('/history', requireUser, (req: Request, res: Response, next: NextFunction): void => {
-  try {
-    res.json(getHistory(req.user!.id));
-  } catch (error) {
-    next(error);
-  }
-});
+productRoutes.get(
+  '/history',
+  requireUser,
+  (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      res.json(getHistory(req.user!.id));
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 /**
  * A report belongs to the seller who created it. Every seller-owned analysis
@@ -92,7 +101,10 @@ productRoutes.get(
         : record.insights.language;
       const pdf = await renderReportPdf(record, language);
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename="' + reportPdfFilename(record) + '"');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="' + reportPdfFilename(record) + '"',
+      );
       res.send(pdf);
     } catch (error) {
       next(error);

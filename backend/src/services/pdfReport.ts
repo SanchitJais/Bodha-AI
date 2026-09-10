@@ -90,7 +90,10 @@ function escapeHtml(value: string): string {
 }
 
 export function reportPdfFilename(record: AnalysisRecord): string {
-  const title = record.title.replace(/[^\w\u0900-\u097F\u0B80-\u0BFF]+/g, '_').replace(/^_|_$/g, '').slice(0, 40);
+  const title = record.title
+    .replace(/[^\w\u0900-\u097F\u0B80-\u0BFF]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 40);
   const date = record.createdAt.slice(0, 10);
   return 'BodhaAI_Report_' + (title || 'Product') + '_' + date + '.pdf';
 }
@@ -234,7 +237,10 @@ export function buildReportHtml(record: AnalysisRecord, language: UiLanguage): s
 </html>`;
 }
 
-export async function renderReportPdf(record: AnalysisRecord, language: UiLanguage): Promise<Buffer> {
+export async function renderReportPdf(
+  record: AnalysisRecord,
+  language: UiLanguage,
+): Promise<Buffer> {
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();

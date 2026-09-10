@@ -40,7 +40,10 @@ export function Navbar() {
 
   return (
     <header className="app-header sticky top-0 z-40 border-b border-rule bg-paper/95 backdrop-blur-md">
-      <nav className="section-shell flex min-h-14 min-w-0 items-center justify-between gap-3 py-2" aria-label="Main">
+      <nav
+        className="section-shell flex min-h-14 min-w-0 items-center justify-between gap-3 py-2"
+        aria-label="Main"
+      >
         <Link to="/" className="flex min-w-0 items-center gap-2" aria-label={t('nav.homeAria')}>
           <Logo className="h-8 w-8 shrink-0" />
           <span className="truncate font-display text-lg font-semibold tracking-tight text-ink">
@@ -78,7 +81,10 @@ export function Navbar() {
             </>
           ) : (
             <>
-              <Link to="/login" className="px-2 py-2 text-sm font-medium text-ink-muted hover:text-ink">
+              <Link
+                to="/login"
+                className="px-2 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+              >
                 {t('auth.loginLink')}
               </Link>
               <Link

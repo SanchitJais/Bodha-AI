@@ -28,7 +28,11 @@ async function elevenLabsGet(path: string): Promise<Record<string, unknown> | nu
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    console.warn('[bodha-ai] ElevenLabs session request failed:', response.status, detail.slice(0, 240));
+    console.warn(
+      '[bodha-ai] ElevenLabs session request failed:',
+      response.status,
+      detail.slice(0, 240),
+    );
     return null;
   }
 

@@ -13,16 +13,16 @@ export function OnboardingPage() {
   const { t } = useTranslation();
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
-
-  if (user?.onboarded) {
-    return <Navigate to="/analyze" replace />;
-  }
   const { data: meta } = useMeta();
   const [storeName, setStoreName] = useState(user?.storeName ?? '');
   const [storeCity, setStoreCity] = useState(user?.storeCity ?? '');
   const [storeCategory, setStoreCategory] = useState(user?.storeCategory ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  if (user?.onboarded) {
+    return <Navigate to="/analyze" replace />;
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();

@@ -13,8 +13,13 @@ vi.mock('../models/productRepository.js', () => ({
   findAnalysisById: (...args: unknown[]) => findAnalysisById(...args),
 }));
 
-const { getCompetitorAnalysis, getPriceExplanation, getRegionalDemand, getReportSummary, getReviewSentiment } =
-  await import('../services/voiceToolsService.js');
+const {
+  getCompetitorAnalysis,
+  getPriceExplanation,
+  getRegionalDemand,
+  getReportSummary,
+  getReviewSentiment,
+} = await import('../services/voiceToolsService.js');
 
 function platform(partial: Partial<PlatformRecommendation> = {}): PlatformRecommendation {
   return {
@@ -132,7 +137,11 @@ describe('voice tool payloads', () => {
               weaknesses: ['Thin review history'],
             }),
           ],
-          reviewSentiment: { available: true, topPraises: ['fast charge'], topComplaints: ['short cable'] },
+          reviewSentiment: {
+            available: true,
+            topPraises: ['fast charge'],
+            topComplaints: ['short cable'],
+          },
           regionalDemand: { available: false, states: [] },
           platformBenefits: [],
         },
@@ -150,7 +159,9 @@ describe('voice tool payloads', () => {
     expect(hindi.available).toBe(true);
     if (hindi.available) {
       expect(hindi.competitors).toHaveLength(2);
-      expect(hindi.competitors.some((card) => card.strengths.join(' ').match(/₹|रेटिंग|समीक्षा/))).toBe(true);
+      expect(
+        hindi.competitors.some((card) => card.strengths.join(' ').match(/₹|रेटिंग|समीक्षा/)),
+      ).toBe(true);
     }
   });
 

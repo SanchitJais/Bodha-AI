@@ -67,11 +67,7 @@ export async function createAnalysis(
     market.snapshots,
   );
 
-  const platforms = localizePlatformExplanations(
-    pricing.platforms,
-    language,
-    request.currentPrice,
-  );
+  const platforms = localizePlatformExplanations(pricing.platforms, language, request.currentPrice);
 
   const winner =
     platforms.find((platform) => platform.id === pricing.recommendedPlatform) ?? platforms[0];
@@ -171,7 +167,11 @@ async function resolveCompetitorListings(input: {
   ];
 
   for (const platformId of order) {
-    const live = matchListings(input.listingsByPlatform?.[platformId] ?? [], input.title, input.currentPrice);
+    const live = matchListings(
+      input.listingsByPlatform?.[platformId] ?? [],
+      input.title,
+      input.currentPrice,
+    );
     if (live.length > 0) return { platformId, listings: live };
   }
 
@@ -250,7 +250,11 @@ export async function getAnalysis(productId: string): Promise<AnalysisRecord | n
     currentPrice: record.currentPrice,
   });
 
-  if (rebuilt.competitors.length > 0 || rebuilt.reviewSentiment.available || rebuilt.regionalDemand.available) {
+  if (
+    rebuilt.competitors.length > 0 ||
+    rebuilt.reviewSentiment.available ||
+    rebuilt.regionalDemand.available
+  ) {
     record.insights = rebuilt;
     updateInsights(record.productId, rebuilt);
   }

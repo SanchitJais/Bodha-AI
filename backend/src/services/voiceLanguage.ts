@@ -8,7 +8,10 @@ export function countHindiMarkers(text: string): number {
   return text.match(HINDI_MARKERS)?.length ?? 0;
 }
 
-export function detectSpokenLanguage(text: string, preferred: SpokenLanguage = 'en'): SpokenLanguage {
+export function detectSpokenLanguage(
+  text: string,
+  preferred: SpokenLanguage = 'en',
+): SpokenLanguage {
   if (/[\u0B80-\u0BFF]/.test(text)) return 'ta';
   if (/[\u0900-\u097F]/.test(text)) return 'hi';
   if (countHindiMarkers(text) >= 2) return 'hinglish';
@@ -16,7 +19,10 @@ export function detectSpokenLanguage(text: string, preferred: SpokenLanguage = '
   return preferred;
 }
 
-export function resolveReplyLanguage(text: string, preferred: SpokenLanguage = 'en'): SpokenLanguage {
+export function resolveReplyLanguage(
+  text: string,
+  preferred: SpokenLanguage = 'en',
+): SpokenLanguage {
   if (/[\u0B80-\u0BFF]/.test(text)) return 'ta';
   if (/[\u0900-\u097F]/.test(text)) return 'hi';
   if (countHindiMarkers(text) >= 2) return preferred === 'hi' ? 'hi' : 'hinglish';

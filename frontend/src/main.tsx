@@ -37,7 +37,8 @@ if (!container) {
   throw new Error('Root container #root not found');
 }
 
-const capacitor = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+const capacitor = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } })
+  .Capacitor;
 if (capacitor?.isNativePlatform?.()) {
   document.documentElement.classList.add('native-app');
 }

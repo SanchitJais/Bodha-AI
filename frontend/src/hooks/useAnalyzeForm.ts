@@ -37,10 +37,7 @@ function parseMoney(value: string): number {
   return value.trim() === '' ? Number.NaN : Number(value);
 }
 
-export function validate(
-  values: AnalyzeFormValues,
-  t: (key: string) => string,
-): AnalyzeFormErrors {
+export function validate(values: AnalyzeFormValues, t: (key: string) => string): AnalyzeFormErrors {
   const errors: AnalyzeFormErrors = {};
 
   if (values.title.trim().length < 3) {

@@ -121,12 +121,7 @@ export function getDatabase(): DatabaseSync {
   return database;
 }
 
-function ensureColumn(
-  db: DatabaseSync,
-  table: string,
-  column: string,
-  definition: string,
-): void {
+function ensureColumn(db: DatabaseSync, table: string, column: string, definition: string): void {
   const rows = db.prepare('PRAGMA table_info(' + table + ')').all() as { name: string }[];
   if (rows.some((row) => row.name === column)) return;
   db.exec('ALTER TABLE ' + table + ' ADD COLUMN ' + column + ' ' + definition);

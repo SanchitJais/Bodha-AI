@@ -7,7 +7,12 @@
  * onto every competitor.
  */
 
-import type { ComparableListing, CompetitorInsight, ReviewSentiment, UiLanguage } from '../types/index.js';
+import type {
+  ComparableListing,
+  CompetitorInsight,
+  ReviewSentiment,
+  UiLanguage,
+} from '../types/index.js';
 import { generateJson, hasGeminiKey } from './geminiService.js';
 
 const LANGUAGE_NAME: Record<UiLanguage, string> = {
@@ -54,7 +59,7 @@ export async function describeCompetitors(
         'You help an Indian seller understand their top competitors.',
         'Write strengths and weaknesses in ' + LANGUAGE_NAME[language] + ' only.',
         'Each strengths/weaknesses item is one short phrase (max 16 words).',
-        'CRITICAL: every competitor must have DIFFERENT bullets. Cite that listing\'s exact price, rating and review count.',
+        "CRITICAL: every competitor must have DIFFERENT bullets. Cite that listing's exact price, rating and review count.",
         'Do not reuse the same phrase on two cards. Do not write generic SWOT that could apply to any headphone.',
         'Frame weaknesses as "why a buyer might skip THIS listing", not quoted reviews.',
         'Use these common buyer themes only when they fit a specific card — praises: ' +
@@ -63,7 +68,9 @@ export async function describeCompetitors(
           (sentiment.topComplaints.join('; ') || 'none') +
           '.',
         options.sellerPrice
-          ? 'The seller\'s listed price is ₹' + Math.round(options.sellerPrice) + '. Compare each card to that.'
+          ? "The seller's listed price is ₹" +
+            Math.round(options.sellerPrice) +
+            '. Compare each card to that.'
           : '',
         'Return JSON: { competitors: [{ title, strengths: string[2-3], weaknesses: string[2-3] }] }',
         'Match titles exactly to these listings:',
@@ -186,7 +193,12 @@ function candidateStrengths(
         .replace('{{seller}}', inr(ctx.sellerPrice)),
     );
   }
-  if (rating != null && peers && rating >= ctx.maxRating - 0.05 && ctx.maxRating > ctx.minRating + 0.05) {
+  if (
+    rating != null &&
+    peers &&
+    rating >= ctx.maxRating - 0.05 &&
+    ctx.maxRating > ctx.minRating + 0.05
+  ) {
     out.push(t.bestRating.replace('{{rating}}', rating.toFixed(1)));
   } else if (rating != null && rating >= 4.3) {
     out.push(t.strongRating.replace('{{rating}}', rating.toFixed(1)));
@@ -212,7 +224,9 @@ function candidateStrengths(
     );
   }
   if (listing.price > 0) {
-    out.push(t.pricedAt.replace('{{price}}', inr(listing.price)).replace('{{n}}', String(index + 1)));
+    out.push(
+      t.pricedAt.replace('{{price}}', inr(listing.price)).replace('{{n}}', String(index + 1)),
+    );
   }
   return out;
 }
@@ -245,7 +259,12 @@ function candidateWeaknesses(
         .replace('{{seller}}', inr(ctx.sellerPrice)),
     );
   }
-  if (rating != null && peers && rating <= ctx.minRating + 0.05 && ctx.maxRating > ctx.minRating + 0.05) {
+  if (
+    rating != null &&
+    peers &&
+    rating <= ctx.minRating + 0.05 &&
+    ctx.maxRating > ctx.minRating + 0.05
+  ) {
     out.push(t.worstRating.replace('{{rating}}', rating.toFixed(1)));
   } else if (rating != null && rating < 4) {
     out.push(t.lowRating.replace('{{rating}}', rating.toFixed(1)));
@@ -274,7 +293,9 @@ function candidateWeaknesses(
     const theme = sentiment.topComplaints[index % sentiment.topComplaints.length];
     out.push(t.complaint.replace('{{theme}}', theme));
   }
-  out.push(t.genericWeak.replace('{{n}}', String(index + 1)).replace('{{price}}', inr(listing.price)));
+  out.push(
+    t.genericWeak.replace('{{n}}', String(index + 1)).replace('{{price}}', inr(listing.price)),
+  );
   return out;
 }
 
@@ -293,7 +314,8 @@ function pickUnused(candidates: string[], used: Set<string>, count: number): str
 export function insightsAreDistinct(cards: CompetitorInsight[]): boolean {
   if (cards.length <= 1) return true;
   const fingerprints = cards.map(
-    (card) => card.strengths.join('|').toLowerCase() + '::' + card.weaknesses.join('|').toLowerCase(),
+    (card) =>
+      card.strengths.join('|').toLowerCase() + '::' + card.weaknesses.join('|').toLowerCase(),
   );
   if (new Set(fingerprints).size !== cards.length) return false;
   const firstStrength = cards.map((card) => (card.strengths[0] ?? '').toLowerCase());
@@ -315,7 +337,10 @@ function baseCard(listing: ComparableListing): Omit<CompetitorInsight, 'strength
 }
 
 function cleanList(values: string[] | undefined): string[] {
-  return (values ?? []).map((item) => String(item).trim()).filter(Boolean).slice(0, 3);
+  return (values ?? [])
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .slice(0, 3);
 }
 
 function normalize(value: string): string {
@@ -361,7 +386,8 @@ const COPY: Record<UiLanguage, Record<string, string>> = {
     someReviews: '{{reviews}} reviews give it visible social proof',
     newerGen: 'Newer generation ({{gen}}) than older peers in this set',
     official: 'Official / authorised listing — stronger warranty trust',
-    aboveSellerStrength: 'Priced at {{price}}, above your {{seller}} so you look like the value pick',
+    aboveSellerStrength:
+      'Priced at {{price}}, above your {{seller}} so you look like the value pick',
     pricedAt: 'Live at {{price}} (card {{n}} in this comparison)',
     mostExpensive: 'Most expensive here at {{price}} — deal hunters will skip it',
     aboveSeller: '{{delta}} above your {{seller}} — you can undercut this card',
@@ -411,7 +437,8 @@ const COPY: Record<UiLanguage, Record<string, string>> = {
     someReviews: '{{reviews}} விமர்சனங்கள் நம்பிக்கை தருகின்றன',
     newerGen: 'பழைய சகாக்களை விட புதிய தலைமுறை ({{gen}})',
     official: 'அதிகாரப்பூர்வ பட்டியல் — உத்தரவாத நம்பிக்கை',
-    aboveSellerStrength: '{{price}} இல், உங்கள் {{seller}}க்கு மேல் — நீங்கள் மலிவாகத் தெரிகிறீர்கள்',
+    aboveSellerStrength:
+      '{{price}} இல், உங்கள் {{seller}}க்கு மேல் — நீங்கள் மலிவாகத் தெரிகிறீர்கள்',
     pricedAt: '{{price}} இல் நேரடி (ஒப்பீட்டில் அட்டை {{n}})',
     mostExpensive: 'இங்கே அதிக விலை {{price}} — சலுகை தேடுபவர் தவிர்ப்பார்',
     aboveSeller: 'உங்கள் {{seller}}ஐ விட {{delta}} அதிகம் — நீங்கள் குறைக்கலாம்',

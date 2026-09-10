@@ -158,9 +158,7 @@ function HistoryCard({ item }: { item: HistoryItem }) {
               style={{ backgroundColor: PLATFORM_COLORS[item.recommendedPlatform] }}
               aria-hidden="true"
             />
-            <span className="font-medium text-ink">
-              {PLATFORM_NAMES[item.recommendedPlatform]}
-            </span>
+            <span className="font-medium text-ink">{PLATFORM_NAMES[item.recommendedPlatform]}</span>
             <span className="figure ml-auto text-base font-medium text-brand-600">
               {formatCurrency(item.recommendedPrice)}
             </span>

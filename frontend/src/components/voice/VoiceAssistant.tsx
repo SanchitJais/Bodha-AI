@@ -166,19 +166,32 @@ function VoiceAssistantInner() {
           context: { productId, page: location.pathname },
         });
         if (userClosedRef.current) return;
-        setTurns((current) => [...current, { id: 'a-' + Date.now(), role: 'assistant', text: result.answer }]);
-        const replyLanguage = result.language === 'hinglish' ? 'hi' : resolveAppLanguage(result.language);
+        setTurns((current) => [
+          ...current,
+          { id: 'a-' + Date.now(), role: 'assistant', text: result.answer },
+        ]);
+        const replyLanguage =
+          result.language === 'hinglish' ? 'hi' : resolveAppLanguage(result.language);
         speakAnswer(result.answer, replyLanguage);
       } catch (err) {
         if (userClosedRef.current) return;
-        if (err instanceof ApiError && err.status === 0 && /how|work|bodha|कैसे|எப்படி|kya hai/i.test(trimmed)) {
+        if (
+          err instanceof ApiError &&
+          err.status === 0 &&
+          /how|work|bodha|कैसे|எப்படி|kya hai/i.test(trimmed)
+        ) {
           const local = t('home.subhead');
-          setTurns((current) => [...current, { id: 'a-' + Date.now(), role: 'assistant', text: local }]);
+          setTurns((current) => [
+            ...current,
+            { id: 'a-' + Date.now(), role: 'assistant', text: local },
+          ]);
           speakAnswer(local, spokenLanguage);
           return;
         }
         setMode('listening');
-        setError(err instanceof ApiError && err.status === 0 ? t('voice.networkError') : t('voice.error'));
+        setError(
+          err instanceof ApiError && err.status === 0 ? t('voice.networkError') : t('voice.error'),
+        );
         startListening();
       }
     },
@@ -396,7 +409,9 @@ function VoiceAssistantInner() {
                       }}
                       className={cx(
                         'px-2 py-0.5 text-[11px] font-medium',
-                        voiceLang === code ? 'bg-brand-600 text-white' : 'bg-white text-ink-muted ring-1 ring-rule',
+                        voiceLang === code
+                          ? 'bg-brand-600 text-white'
+                          : 'bg-white text-ink-muted ring-1 ring-rule',
                       )}
                     >
                       {code === 'en' ? 'EN' : code === 'hi' ? 'हि' : 'த'}
@@ -415,12 +430,24 @@ function VoiceAssistantInner() {
                   aria-pressed={muted}
                 >
                   {muted ? (
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                    >
                       <path d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3z" />
                       <path d="M19 10v1a7 7 0 01-14 0v-1M12 18v3M4 4l16 16" />
                     </svg>
                   ) : (
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                    >
                       <path d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3z" />
                       <path d="M19 10v1a7 7 0 01-14 0v-1M12 18v3" />
                     </svg>
@@ -436,7 +463,13 @@ function VoiceAssistantInner() {
                 className="p-1.5 text-ink-muted hover:text-ink"
                 aria-label={t('voice.close')}
               >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                >
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
               </button>
@@ -462,7 +495,9 @@ function VoiceAssistantInner() {
                 {turn.text}
               </div>
             ))}
-            {connecting && <p className="text-xs font-semibold text-brand-600">{t('voice.connecting')}</p>}
+            {connecting && (
+              <p className="text-xs font-semibold text-brand-600">{t('voice.connecting')}</p>
+            )}
             {connected && speaking && (
               <p className="text-xs font-semibold text-brand-600">{t('voice.speaking')}</p>
             )}
@@ -519,7 +554,13 @@ function VoiceAssistantInner() {
         {active ? (
           <span className="h-4 w-4 animate-pulse rounded-full bg-white" />
         ) : (
-          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            className="h-6 w-6"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3z" />
             <path d="M19 10v1a7 7 0 01-14 0v-1M12 18v3" />
           </svg>

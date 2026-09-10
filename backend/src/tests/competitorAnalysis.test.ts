@@ -8,7 +8,9 @@ import {
 } from '../services/competitorAnalysis.js';
 import type { ComparableListing, ReviewSentiment } from '../types/index.js';
 
-function listing(partial: Partial<ComparableListing> & { title: string; price: number }): ComparableListing {
+function listing(
+  partial: Partial<ComparableListing> & { title: string; price: number },
+): ComparableListing {
   return { url: 'https://example.com/' + partial.title, ...partial };
 }
 

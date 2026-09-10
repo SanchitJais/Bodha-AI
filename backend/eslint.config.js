@@ -3,7 +3,17 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'data', 'eslint.config.js', 'vitest.config.ts'] },
+  {
+    ignores: [
+      'dist',
+      'node_modules',
+      'data',
+      'eslint.config.js',
+      'vitest.config.ts',
+      // Standalone dev/debug utilities, not part of the app's TS source tree.
+      'scripts/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -14,7 +24,10 @@ export default tseslint.config(
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       'no-console': 'off',
     },
   },

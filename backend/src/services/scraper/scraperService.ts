@@ -20,7 +20,9 @@ const scrapers: Record<'amazon' | 'flipkart' | 'snapdeal', MarketplaceScraper> =
   snapdeal: new SnapdealScraper(),
 };
 
-export function hasLiveScraper(platformId: PlatformId): platformId is 'amazon' | 'flipkart' | 'snapdeal' {
+export function hasLiveScraper(
+  platformId: PlatformId,
+): platformId is 'amazon' | 'flipkart' | 'snapdeal' {
   return platformId === 'amazon' || platformId === 'flipkart' || platformId === 'snapdeal';
 }
 
