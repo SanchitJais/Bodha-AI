@@ -10,7 +10,13 @@ import { randomUUID } from 'node:crypto';
 
 import { PLATFORMS } from '../data/platformConfig.js';
 import { DEMO_SELLER_ID } from '../models/db.js';
-import { findAnalysisById, listHistory, saveAnalysis, updateInsights } from '../models/productRepository.js';
+import {
+  findAnalysisById,
+  findAnalysisOwner,
+  listHistory,
+  saveAnalysis,
+  updateInsights,
+} from '../models/productRepository.js';
 import { localizePlatformExplanations } from './explanationI18n.js';
 import {
   buildDistinctInsights,
@@ -203,6 +209,11 @@ async function resolveCompetitorListings(input: {
 function shortenTitle(title: string): string {
   const first = title.split(/[,|/]/)[0]?.replace(/\s+/g, ' ').trim() ?? title;
   return first.split(' ').slice(0, 6).join(' ');
+}
+
+/** The seller who owns a product, or null if it does not exist. */
+export function getAnalysisOwner(productId: string): string | null {
+  return findAnalysisOwner(productId);
 }
 
 export async function getAnalysis(productId: string): Promise<AnalysisRecord | null> {

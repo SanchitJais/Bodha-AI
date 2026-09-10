@@ -6,6 +6,11 @@
  * band (Amazon 15–20%, Flipkart 12–18%, Snapdeal 8–12%, Alibaba 3–6%) and are
  * not something a search-results scrape can observe. Live prices, demand and
  * competition come from scraperService at query time.
+ *
+ * `feePercent` here is the published commission rate only. The pricing engine
+ * (see `effectiveFeePercent` in pricingEngine.ts) additionally deducts the 18%
+ * GST that marketplaces charge on that commission before it reaches the
+ * seller's settlement — a real, mandatory cost, not an estimate.
  */
 
 import type { PlatformConfig, PlatformId } from '../types/index.js';

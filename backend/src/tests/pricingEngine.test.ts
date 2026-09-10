@@ -84,10 +84,10 @@ describe('Section 2.4 - required worked examples', () => {
     expect(amazon.lossRiskAvoided).toBe(false);
     expect(amazon.recommendedPrice).toBeGreaterThan(amazon.breakEvenPrice);
 
-    expect(amazon.breakEvenPrice).toBeCloseTo(547.8, 1);
+    expect(amazon.breakEvenPrice).toBeCloseTo(567.87, 1);
     // Profit is always at the seller's listed price (₹800), not the recommended ₹999.
-    expect(amazon.estimatedProfit).toBeCloseTo(196, 2);
-    expect(amazon.profitMargin).toBeCloseTo(0.245, 3);
+    expect(amazon.estimatedProfit).toBeCloseTo(170.08, 2);
+    expect(amazon.profitMargin).toBeCloseTo(0.2126, 3);
     expect(amazon.profitAvailable).toBe(true);
     expect(amazon.profitError).toBeNull();
 
@@ -127,7 +127,7 @@ describe('Section 2.4 - required worked examples', () => {
 
     const amazon = result.platforms.find((platform) => platform.id === 'amazon');
     expect(amazon?.recommendedPrice).toBe(ELECTRONICS_AMAZON_MEDIAN);
-    expect(amazon?.breakEvenPrice).toBeCloseTo(547.8, 1);
+    expect(amazon?.breakEvenPrice).toBeCloseTo(567.87, 1);
   });
 
   it('case 3: never recommends below break-even when the market price is too low', () => {
@@ -157,7 +157,7 @@ describe('Section 2.4 - required worked examples', () => {
     expect(alibaba.recommendedPrice - commission).toBeGreaterThanOrEqual(900);
 
     // Profit stays on the seller's ₹1,000 list price (cost ₹900), not the floored recommendation.
-    expect(alibaba.estimatedProfit).toBeCloseTo(30, 2);
+    expect(alibaba.estimatedProfit).toBeCloseTo(21.9, 2);
     expect(alibaba.profitAvailable).toBe(true);
 
     expect(alibaba.explanation).toMatch(/refused to suggest a loss-making price/i);
@@ -199,17 +199,17 @@ describe('formula helpers', () => {
     expect(() => median([])).toThrow(/at least one value/);
   });
 
-  it('grosses the manufacturing cost up by the commission, then adds shipping', () => {
-    expect(calculateBreakEvenPrice(400, 0.18, 60)).toBeCloseTo(547.8, 1);
+  it('grosses the manufacturing cost up by the commission plus GST on that commission, then adds shipping', () => {
+    expect(calculateBreakEvenPrice(400, 0.18, 60)).toBeCloseTo(567.87, 1);
     expect(calculateBreakEvenPrice(400, 0, 0)).toBe(400);
     expect(() => calculateBreakEvenPrice(400, 1, 0)).toThrow(/below 1/);
   });
 
-  it('computes profit net of commission, shipping and cost', () => {
-    expect(calculateEstimatedProfit(1000, 400, 0.2, 50)).toBeCloseTo(350, 5);
+  it('computes profit net of commission, GST on that commission, shipping and cost', () => {
+    expect(calculateEstimatedProfit(1000, 400, 0.2, 50)).toBeCloseTo(314, 5);
 
     const breakEven = calculateBreakEvenPrice(400, 0.18, 60);
-    expect(calculateEstimatedProfit(breakEven, 400, 0.18, 60)).toBeCloseTo(-10.8, 6);
+    expect(calculateEstimatedProfit(breakEven, 400, 0.18, 60)).toBeCloseTo(-12.744, 3);
 
     const zeroProfit = zeroProfitPrice(400, 0.18, 60);
     expect(calculateEstimatedProfit(zeroProfit, 400, 0.18, 60)).toBeCloseTo(0, 6);
@@ -297,7 +297,7 @@ describe('analyzePricing input guards', () => {
     expect(amazon.explanation).toMatch(/temporarily unavailable/i);
     // Missing market data is not a fake ₹0 profit — seller cost/price still compute.
     expect(amazon.profitAvailable).toBe(true);
-    expect(amazon.estimatedProfit).toBeCloseTo(196, 2);
+    expect(amazon.estimatedProfit).toBeCloseTo(170.08, 2);
     expect(amazon.explanation).toMatch(/estimated profit/i);
   });
 });
@@ -335,7 +335,7 @@ describe('Sony WH-1000XM5 — seller price and matched-product market', () => {
       PLATFORMS.amazon.avgShippingFee,
     );
     expect(amazon.estimatedProfit).toBeCloseTo(expectedAmazonProfit, 2);
-    expect(amazon.estimatedProfit).toBeCloseTo(2431.8, 1);
+    expect(amazon.estimatedProfit).toBeCloseTo(1622.12, 1);
     expect(amazon.estimatedProfit).not.toBe(0);
     expect(amazon.profitAvailable).toBe(true);
     expect(amazon.profitMargin).toBeGreaterThan(0);

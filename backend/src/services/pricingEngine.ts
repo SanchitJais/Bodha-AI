@@ -54,6 +54,26 @@ export const PRICE_ACTION_TOLERANCE = 0.1;
 /** Cut-points that turn a 0-100 index into a Low / Medium / High badge. */
 export const INDEX_LEVEL_THRESHOLDS = { medium: 40, high: 70 } as const;
 
+/**
+ * GST charged on marketplace commission in India (18% slab for e-commerce
+ * operator services under GST law). Marketplaces bill this on top of the
+ * published commission rate and deduct it from the seller's settlement — it
+ * is a mandatory tax, not a business assumption, so it belongs in the same
+ * formula as the commission itself rather than being left for the seller to
+ * discover in their payout report.
+ */
+export const COMMISSION_GST_RATE = 0.18;
+
+/**
+ * The commission rate a seller actually pays once GST on that commission is
+ * included. `platform.feePercent` (published commission) stays the number
+ * shown to sellers as "Amazon's commission"; this is what the profit and
+ * break-even formulas deduct.
+ */
+export function effectiveFeePercent(feePercent: number): number {
+  return feePercent * (1 + COMMISSION_GST_RATE);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Small numeric helpers                                                      */
 /* -------------------------------------------------------------------------- */
@@ -102,31 +122,35 @@ export function normalizeProfit(estimatedProfit: number, recommendedPrice: numbe
 /**
  * The loss-prevention floor.
  *
- * The marketplace commission is charged on the SALE price, not on cost, so the
- * cost must be grossed up by `1 - feePercent` before shipping is added.
+ * The marketplace commission (plus the GST charged on that commission, see
+ * `effectiveFeePercent`) is charged on the SALE price, not on cost, so the
+ * cost must be grossed up by `1 - effectiveFeePercent` before shipping is
+ * added.
  *
  * GUARANTEE: at this price the seller always recovers manufacturing cost plus
- * the marketplace commission in full. Concretely, for cost 400 / fee 18% /
- * shipping 60 the floor is 547.80, of which 98.60 is commission, leaving
- * 449.20 - comfortably above the 400 unit cost.
+ * the marketplace commission and its GST in full. Concretely, for cost 400 /
+ * fee 18% (21.24% once GST is added) / shipping 60 the floor is ~567.87, of
+ * which ~120.67 is commission + GST, leaving ~447.20 - comfortably above the
+ * 400 unit cost.
  *
  * KNOWN RESIDUAL: because the flat shipping fee is added *after* the gross-up
  * rather than being grossed up itself, this floor leaves the shipping fee's own
- * share of commission uncovered - exactly `feePercent * avgShippingFee`
- * (10.80 in the example above). The formula is specified this way, and the
- * product guarantee it backs is "cost + platform fees", which it meets. A floor
- * that also grossed shipping up would be `(cost + shipping) / (1 - fee)`.
- * `zeroProfitPrice()` below exposes that stricter figure for reference.
+ * share of commission+GST uncovered - exactly `effectiveFeePercent * avgShippingFee`.
+ * The formula is specified this way, and the product guarantee it backs is
+ * "cost + platform fees", which it meets. A floor that also grossed shipping up
+ * would be `(cost + shipping) / (1 - effectiveFeePercent)`. `zeroProfitPrice()`
+ * below exposes that stricter figure for reference.
  */
 export function calculateBreakEvenPrice(
   manufacturingCost: number,
   feePercent: number,
   avgShippingFee: number,
 ): number {
-  if (feePercent >= 1) {
+  const effectiveFee = effectiveFeePercent(feePercent);
+  if (effectiveFee >= 1) {
     throw new Error('feePercent must be below 1 (100%)');
   }
-  return manufacturingCost / (1 - feePercent) + avgShippingFee;
+  return manufacturingCost / (1 - effectiveFee) + avgShippingFee;
 }
 
 /**
@@ -138,17 +162,22 @@ export function zeroProfitPrice(
   feePercent: number,
   avgShippingFee: number,
 ): number {
-  return (manufacturingCost + avgShippingFee) / (1 - feePercent);
+  return (manufacturingCost + avgShippingFee) / (1 - effectiveFeePercent(feePercent));
 }
 
-/** Net profit per unit once commission, shipping and manufacturing are paid. */
+/**
+ * Net profit per unit once commission (grossed up for the GST charged on
+ * that commission), shipping and manufacturing are paid.
+ */
 export function calculateEstimatedProfit(
   sellingPrice: number,
   manufacturingCost: number,
   feePercent: number,
   avgShippingFee: number,
 ): number {
-  return sellingPrice - sellingPrice * feePercent - avgShippingFee - manufacturingCost;
+  return (
+    sellingPrice - sellingPrice * effectiveFeePercent(feePercent) - avgShippingFee - manufacturingCost
+  );
 }
 
 /**
@@ -242,7 +271,7 @@ function buildExplanation(params: ExplanationParams): string {
     inr(currentPrice) +
     ' price, after the ' +
     platformName +
-    ' commission, shipping and your ' +
+    ' commission (plus GST on that commission), shipping and your ' +
     inr(manufacturingCost) +
     ' cost, estimated profit is ' +
     inr(estimatedProfit) +
@@ -426,7 +455,7 @@ export function analyzePlatform(
       inr(input.currentPrice) +
       ' price after the ' +
       platform.name +
-      ' commission, shipping and your ' +
+      ' commission (plus GST on that commission), shipping and your ' +
       inr(input.manufacturingCost) +
       ' cost is ' +
       inr(sellerProfit) +

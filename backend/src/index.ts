@@ -9,9 +9,17 @@ getDatabase();
 
 const app = createApp();
 
+if (process.env.VERCEL && !env.razorpayKeySecret) {
+  console.warn(
+    '[bodha-ai] RAZORPAY_KEY_SECRET is not set on a deployed instance — ' +
+      'billingRoutes treats every "order_dev_*" id as paid, so anyone signed in ' +
+      'can upgrade to Pro for free until this is configured.',
+  );
+}
+
 if (!process.env.VERCEL) {
-  const server = app.listen(env.port, () => {
-    console.log('[bodha-ai] API listening on http://localhost:' + env.port);
+  const server = app.listen(env.port, '0.0.0.0', () => {
+    console.log('[bodha-ai] API listening on http://0.0.0.0:' + env.port);
     console.log('[bodha-ai] allowed origins: ' + env.corsOrigins.join(', '));
   });
 

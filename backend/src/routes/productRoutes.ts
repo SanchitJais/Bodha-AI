@@ -12,7 +12,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { requireUser } from '../middleware/auth.js';
 import { creditStatus } from '../models/userRepository.js';
 import { inferListingFromPhoto } from '../services/autoInsightService.js';
-import { createAnalysis, getAnalysis, getHistory } from '../services/analysisService.js';
+import { createAnalysis, getAnalysis, getAnalysisOwner, getHistory } from '../services/analysisService.js';
 import { renderReportPdf, reportPdfFilename } from '../services/pdfReport.js';
 import { HttpError } from '../utils/httpError.js';
 import { parseAnalyzeRequest, parseInsightRequest } from '../utils/validation.js';
@@ -63,34 +63,57 @@ productRoutes.get('/history', requireUser, (req: Request, res: Response, next: N
   }
 });
 
-productRoutes.get('/:id/pdf', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const productId = String(req.params.id);
-    const record = await getAnalysis(productId);
-    if (!record) {
-      throw HttpError.notFound('No analysis found for product "' + productId + '"');
-    }
-    const language = (['en', 'hi', 'ta'] as const).includes(req.query.lang as UiLanguage)
-      ? (req.query.lang as UiLanguage)
-      : record.insights.language;
-    const pdf = await renderReportPdf(record, language);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="' + reportPdfFilename(record) + '"');
-    res.send(pdf);
-  } catch (error) {
-    next(error);
+/**
+ * A report belongs to the seller who created it. Every seller-owned analysis
+ * has a `sellerId`; a mismatch (or someone else's id entirely) returns 404
+ * rather than 403 so an unauthorized caller cannot use the response to tell
+ * "exists, not yours" apart from "does not exist".
+ */
+function assertOwnsProduct(productId: string, req: Request): void {
+  const owner = getAnalysisOwner(productId);
+  if (!owner || owner !== req.user!.id) {
+    throw HttpError.notFound('No analysis found for product "' + productId + '"');
   }
-});
+}
 
-productRoutes.get('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const productId = String(req.params.id);
-    const record = await getAnalysis(productId);
-    if (!record) {
-      throw HttpError.notFound('No analysis found for product "' + productId + '"');
+productRoutes.get(
+  '/:id/pdf',
+  requireUser,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const productId = String(req.params.id);
+      assertOwnsProduct(productId, req);
+      const record = await getAnalysis(productId);
+      if (!record) {
+        throw HttpError.notFound('No analysis found for product "' + productId + '"');
+      }
+      const language = (['en', 'hi', 'ta'] as const).includes(req.query.lang as UiLanguage)
+        ? (req.query.lang as UiLanguage)
+        : record.insights.language;
+      const pdf = await renderReportPdf(record, language);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + reportPdfFilename(record) + '"');
+      res.send(pdf);
+    } catch (error) {
+      next(error);
     }
-    res.json(record);
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
+
+productRoutes.get(
+  '/:id',
+  requireUser,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const productId = String(req.params.id);
+      assertOwnsProduct(productId, req);
+      const record = await getAnalysis(productId);
+      if (!record) {
+        throw HttpError.notFound('No analysis found for product "' + productId + '"');
+      }
+      res.json(record);
+    } catch (error) {
+      next(error);
+    }
+  },
+);

@@ -156,6 +156,30 @@ export function findAnalysisById(productId: string): AnalysisRecord | null {
   return row ? toAnalysisRecord(row) : null;
 }
 
+/**
+ * The seller who owns a product, or null if it does not exist. Used to check
+ * ownership before returning a stored analysis to a caller — `findAnalysisById`
+ * does not carry `sellerId` itself, since that column is never meant to reach
+ * an API response.
+ */
+export function findAnalysisOwner(productId: string): string | null {
+  const row = getDatabase()
+    .prepare('SELECT sellerId FROM products WHERE id = ?')
+    .get(productId) as { sellerId: string } | undefined;
+
+  return row?.sellerId ?? null;
+}
+
+/** Most recent analysis for a seller, used when the voice panel has no report URL. */
+export function findLatestAnalysisForSeller(sellerId: string): AnalysisRecord | null {
+  if (!sellerId.trim()) return null;
+  const row = getDatabase()
+    .prepare(SELECT_FULL + ' WHERE p.sellerId = ? ORDER BY p.createdAt DESC LIMIT 1')
+    .get(sellerId) as unknown as ProductRow | undefined;
+
+  return row ? toAnalysisRecord(row) : null;
+}
+
 /** Newest-first history summary for the seller's dashboard. */
 export function listHistory(sellerId: string = DEMO_SELLER_ID, limit = 50): HistoryItem[] {
   const rows = getDatabase()

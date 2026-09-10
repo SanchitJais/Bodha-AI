@@ -108,15 +108,20 @@ For each selected marketplace:
 | Step | Formula |
 |---|---|
 | Market price | `median(comparable listing prices)` for that category × platform |
-| **Break-even floor** | `manufacturingCost / (1 - feePercent) + avgShippingFee` |
+| Effective commission | `feePercent × (1 + 0.18)` — marketplaces charge 18% GST on their own commission, deducted from the seller's settlement alongside it |
+| **Break-even floor** | `manufacturingCost / (1 - effectiveFeePercent) + avgShippingFee` |
 | Recommended price | `max(marketPrice, breakEvenPrice)` — clamped, never below the floor |
-| Estimated profit | `price - price × feePercent - avgShippingFee - manufacturingCost` |
+| Estimated profit | `price - price × effectiveFeePercent - avgShippingFee - manufacturingCost` |
 | Fit score (0–100) | `0.4 × normalize(profit) + 0.3 × (100 - competition) + 0.3 × demand` |
 
 Platforms are ranked by fit score; the top one becomes the **Recommended
-Marketplace**. The weights, the 35% target margin used to normalise profit, and the
-±10% re-pricing dead-band are all exported constants in
-[`pricingEngine.ts`](backend/src/services/pricingEngine.ts) so they are easy to tune.
+Marketplace**. The weights, the 35% target margin used to normalise profit, the
+18% GST rate on commission, and the ±10% re-pricing dead-band are all exported
+constants in [`pricingEngine.ts`](backend/src/services/pricingEngine.ts) so they
+are easy to tune. `feePercent` in the marketplace config is still the plain
+published commission rate — it's what the UI shows as "Amazon's commission" —
+while GST is layered on top only inside the profit/break-even math, matching how
+sellers actually see it deducted in their settlement report.
 
 **Price advice** compares the seller's current price to the recommendation:
 below 90% → `increase`, above 110% → `decrease`, otherwise `hold`. Every
@@ -131,13 +136,14 @@ does not follow the market down. It floors the recommendation at break-even, set
 notice explaining why.
 
 > **A note on the break-even formula.** As specified, the flat shipping fee is added
-> *after* the cost is grossed up for commission, rather than being grossed up itself.
-> At exactly the floor this leaves `feePercent × avgShippingFee` uncovered (₹10.80 on
-> Amazon at a ₹60 shipping fee). The guarantee this floor backs — *manufacturing cost
-> plus platform fees is always recovered* — holds in full, and the residual is
-> asserted explicitly in the tests. `zeroProfitPrice()` exposes the stricter
-> `(cost + shipping) / (1 - fee)` figure for reference. See the `KNOWN RESIDUAL` note
-> on `calculateBreakEvenPrice`.
+> *after* the cost is grossed up for commission (+ GST), rather than being grossed up
+> itself. At exactly the floor this leaves `effectiveFeePercent × avgShippingFee`
+> uncovered (₹12.74 on Amazon at a ₹60 shipping fee, since 18% commission plus 18%
+> GST on that commission is a 21.24% effective rate). The guarantee this floor backs —
+> *manufacturing cost plus platform fees is always recovered* — holds in full, and the
+> residual is asserted explicitly in the tests. `zeroProfitPrice()` exposes the
+> stricter `(cost + shipping) / (1 - effectiveFeePercent)` figure for reference. See
+> the `KNOWN RESIDUAL` note on `calculateBreakEvenPrice`.
 
 ---
 
@@ -230,8 +236,8 @@ Base URL `http://localhost:4000`. All errors return
   "platforms": [
     {
       "name": "Amazon", "feePercent": 0.18, "marketPriceRange": [899, 1199],
-      "recommendedPrice": 999, "breakEvenPrice": 547.8,
-      "estimatedProfit": 359.18, "profitMargin": 0.3595,
+      "recommendedPrice": 999, "breakEvenPrice": 567.87,
+      "estimatedProfit": 170.08, "profitMargin": 0.2126,
       "competition": "High", "demand": "High", "fitScore": 74.8,
       "priceAction": "increase", "explanation": "Similar products on Amazon sell…",
       "lossRiskAvoided": false
@@ -263,18 +269,19 @@ The full stored analysis, same shape as the POST response.
 npm test
 ```
 
-**35 unit/API tests passing** (plus 3 live-scrape tests skipped unless `LIVE_SCRAPE=1`).
+**71 unit/API tests passing** (plus 3 live-scrape tests skipped unless `LIVE_SCRAPE=1`).
 
 The three cases required by the brief are grouped under
 `Section 2.4 - required worked examples`:
 
 1. **Increase** — cost ₹400, listed at ₹800, market ≈ ₹1000 → recommends **₹999**
-   with `priceAction: "increase"`, break-even ₹547.80, profit ₹359.18, and an
-   explanation citing high demand and competitors pricing higher.
+   with `priceAction: "increase"`, break-even ₹567.87, profit (at the ₹800 listed
+   price) ₹170.08, and an explanation citing high demand and competitors pricing
+   higher.
 2. **Decrease** — cost ₹400, listed at ₹1400 → `"decrease"`, with the final price
    still more than 1.5× the break-even floor.
 3. **Loss prevention** — cost ₹900 on Toys/Alibaba, where the ₹300 market median is
-   far below the ₹967.41 floor → `recommendedPrice === breakEvenPrice` and
+   far below the ₹975.47 floor → `recommendedPrice === breakEvenPrice` and
    `lossRiskAvoided === true`.
 
 Plus an exhaustive sweep asserting that across **every** category × platform × cost
@@ -300,9 +307,11 @@ A scripted Playwright walkthrough drives a real Chrome through the whole product
 | Mobile (390×844) | [`10-mobile-home.png`](docs/screenshots/10-mobile-home.png), [`11-mobile-report.png`](docs/screenshots/11-mobile-report.png) |
 
 The walkthrough asserts the real numbers on the rendered page (₹999 recommendation,
-₹547.80 break-even, ₹359.18 profit, 18.0% / 4.5% fees), that history persists and
-reopens correctly, that loss protection fires and floors the price at ₹967.41, and
-that neither the home page nor the report scrolls horizontally on a phone.
+18.0% / 4.5% commission), that history persists and reopens correctly, that loss
+protection fires, and that neither the home page nor the report scrolls
+horizontally on a phone. The linked screenshots and their exact break-even/profit
+figures predate the GST-on-commission update above (see "The pricing logic") and
+have not been re-captured; re-run the walkthrough to refresh them.
 
 ---
 

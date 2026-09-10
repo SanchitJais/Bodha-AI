@@ -15,6 +15,7 @@ import { authRoutes } from './routes/authRoutes.js';
 import { billingRoutes } from './routes/billingRoutes.js';
 import { productRoutes } from './routes/productRoutes.js';
 import { voiceRoutes } from './routes/voiceRoutes.js';
+import { voiceToolRoutes } from './routes/voiceToolRoutes.js';
 import { cacheEntryCount, clearCache } from './services/cacheService.js';
 import { isUsingMockOptimizer } from './services/listingOptimizer.js';
 import { HttpError } from './utils/httpError.js';
@@ -24,16 +25,28 @@ export function createApp(): express.Express {
 
   // Product images arrive as downscaled data URLs, so allow a generous body.
   app.use(express.json({ limit: '8mb' }));
+  // On Vercel, `vercel.json` rewrites route the frontend page and `/api/*` to
+  // the same origin, so the browser's own calls are same-origin and never hit
+  // this check at all. Reflecting every origin here (as `process.env.VERCEL`
+  // used to trigger) would only open the credentialed API to cross-site
+  // requests from unrelated pages — it does not fix a legitimate flow, so it
+  // is not done. `*` in CORS_ORIGIN remains an explicit, deliberate opt-in.
   app.use(
     cors({
-      origin:
-        env.corsOrigins.includes('*') || Boolean(process.env.VERCEL)
-          ? true
-          : env.corsOrigins,
+      origin: env.corsOrigins.includes('*') ? true : env.corsOrigins,
       credentials: true,
     }),
   );
   app.use(attachUser);
+
+  app.get('/', (_req: Request, res: Response) => {
+    res.json({
+      name: 'Bodha AI',
+      status: 'ok',
+      app: 'http://localhost:5173',
+      health: '/api/health',
+    });
+  });
 
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
@@ -73,6 +86,7 @@ export function createApp(): express.Express {
   app.use('/api/billing', billingRoutes);
   app.use('/api/products', productRoutes);
   app.use('/api/voice', voiceRoutes);
+  app.use('/api/voice-tools', voiceToolRoutes);
 
   app.use((req: Request, res: Response) => {
     res
