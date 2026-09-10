@@ -6,7 +6,7 @@ Bodha AI answers three questions about a product in one pass — **where** to se
 **what** to charge, and **how** to write the listing — and it will never recommend a
 price that loses the seller money.
 
-![Recommendation report](docs/screenshots/04-report-full.png)
+![Recommendation report]
 
 ---
 
