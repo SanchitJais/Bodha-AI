@@ -1,7 +1,8 @@
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 
 import { env } from '../config/env.js';
 import { getDatabase } from './db.js';
+import { isMongoConnected, SessionModel, UserModel } from './mongo.js';
 
 export type UserPlan = 'free' | 'pro';
 
@@ -90,6 +91,7 @@ export function createUser(input: {
   displayName: string;
 }): UserRecord {
   const createdAt = new Date().toISOString();
+  const passwordHash = hashPassword(input.password);
   const db = getDatabase();
   db.prepare('INSERT OR IGNORE INTO sellers (id, displayName, createdAt) VALUES (?, ?, ?)').run(
     input.id,
@@ -99,13 +101,25 @@ export function createUser(input: {
   db.prepare(
     `INSERT INTO users (id, email, passwordHash, displayName, plan, planExpiresAt, createdAt)
      VALUES (?, ?, ?, ?, 'free', NULL, ?)`,
-  ).run(
-    input.id,
-    input.email.toLowerCase().trim(),
-    hashPassword(input.password),
-    input.displayName,
-    createdAt,
-  );
+  ).run(input.id, input.email.toLowerCase().trim(), passwordHash, input.displayName, createdAt);
+
+  if (isMongoConnected()) {
+    UserModel.updateOne(
+      { _id: input.id },
+      {
+        $set: {
+          email: input.email.toLowerCase().trim(),
+          passwordHash,
+          displayName: input.displayName,
+          plan: 'free',
+          planExpiresAt: null,
+          createdAt,
+          authProvider: 'password',
+        },
+      },
+      { upsert: true },
+    ).catch((err) => console.error('[bodha-ai] Mongo sync user error:', err));
+  }
 
   return {
     id: input.id,
@@ -121,18 +135,94 @@ export function createUser(input: {
   };
 }
 
+/**
+ * Sign in with Google: match the account by email (the same address the
+ * seller already used, so their existing analyses/history stay attached),
+ * or create a fresh free-plan account. Google-only accounts get a random,
+ * never-shown password hash so `passwordHash NOT NULL` is satisfied without
+ * giving them a usable password sign-in.
+ */
+export function findOrCreateGoogleUser(input: {
+  email: string;
+  name: string;
+  googleId: string;
+}): UserRecord {
+  const email = input.email.toLowerCase().trim();
+  const db = getDatabase();
+
+  const existing = findUserByEmail(email);
+  if (existing) {
+    db.prepare('UPDATE users SET googleId = COALESCE(googleId, ?) WHERE id = ?').run(
+      input.googleId,
+      existing.id,
+    );
+    if (isMongoConnected()) {
+      UserModel.updateOne({ _id: existing.id }, { $set: { googleId: input.googleId } }).catch(
+        (err) => console.error('[bodha-ai] Mongo sync error:', err),
+      );
+    }
+    const { passwordHash: _hash, ...user } = existing;
+    return user;
+  }
+
+  const id = randomUUID();
+  const createdAt = new Date().toISOString();
+  const passwordHash = hashPassword(randomBytes(24).toString('hex'));
+  db.prepare('INSERT OR IGNORE INTO sellers (id, displayName, createdAt) VALUES (?, ?, ?)').run(
+    id,
+    input.name,
+    createdAt,
+  );
+  db.prepare(
+    `INSERT INTO users
+       (id, email, passwordHash, displayName, plan, planExpiresAt, createdAt, authProvider, googleId)
+     VALUES (?, ?, ?, ?, 'free', NULL, ?, 'google', ?)`,
+  ).run(id, email, passwordHash, input.name, createdAt, input.googleId);
+
+  if (isMongoConnected()) {
+    UserModel.updateOne(
+      { _id: id },
+      {
+        $set: {
+          email,
+          passwordHash,
+          displayName: input.name,
+          plan: 'free',
+          planExpiresAt: null,
+          createdAt,
+          authProvider: 'google',
+          googleId: input.googleId,
+        },
+      },
+      { upsert: true },
+    ).catch((err) => console.error('[bodha-ai] Mongo sync user error:', err));
+  }
+
+  const created = findUserById(id);
+  if (!created) throw new Error('User missing after Google sign-in');
+  return created;
+}
+
 export function saveStoreProfile(userId: string, profile: StoreProfile): UserRecord {
+  const onboardedAt = new Date().toISOString();
   getDatabase()
     .prepare(
       `UPDATE users SET storeName = ?, storeCity = ?, storeCategory = ?, onboardedAt = ? WHERE id = ?`,
     )
-    .run(
-      profile.storeName,
-      profile.storeCity,
-      profile.storeCategory,
-      new Date().toISOString(),
-      userId,
-    );
+    .run(profile.storeName, profile.storeCity, profile.storeCategory, onboardedAt, userId);
+  if (isMongoConnected()) {
+    UserModel.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          storeName: profile.storeName,
+          storeCity: profile.storeCity,
+          storeCategory: profile.storeCategory,
+          onboardedAt,
+        },
+      },
+    ).catch((err) => console.error('[bodha-ai] Mongo sync profile error:', err));
+  }
   const user = findUserById(userId);
   if (!user) throw new Error('User missing after onboarding');
   return user;
@@ -158,6 +248,11 @@ export function createSession(userId: string): string {
   getDatabase()
     .prepare('INSERT INTO sessions (token, userId, expiresAt) VALUES (?, ?, ?)')
     .run(token, userId, expiresAt);
+  if (isMongoConnected()) {
+    SessionModel.updateOne({ _id: token }, { $set: { userId, expiresAt } }, { upsert: true }).catch(
+      (err) => console.error('[bodha-ai] Mongo sync session error:', err),
+    );
+  }
   return token;
 }
 
@@ -174,6 +269,11 @@ export function findUserBySession(token: string): UserRecord | null {
 
 export function deleteSession(token: string): void {
   getDatabase().prepare('DELETE FROM sessions WHERE token = ?').run(token);
+  if (isMongoConnected()) {
+    SessionModel.deleteOne({ _id: token }).catch((err) =>
+      console.error('[bodha-ai] Mongo delete session error:', err),
+    );
+  }
 }
 
 export function monthStartIso(now = new Date()): string {
@@ -213,6 +313,11 @@ export function activatePro(userId: string, days = 31): UserRecord {
   getDatabase()
     .prepare('UPDATE users SET plan = ?, planExpiresAt = ? WHERE id = ?')
     .run('pro', expires, userId);
+  if (isMongoConnected()) {
+    UserModel.updateOne({ _id: userId }, { $set: { plan: 'pro', planExpiresAt: expires } }).catch(
+      (err) => console.error('[bodha-ai] Mongo activate pro error:', err),
+    );
+  }
   const user = findUserById(userId);
   if (!user) throw new Error('User missing after upgrade');
   return user;

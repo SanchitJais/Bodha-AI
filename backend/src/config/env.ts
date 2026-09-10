@@ -58,12 +58,22 @@ export const env = {
     .filter(Boolean),
   databasePath:
     process.env.DATABASE_PATH ?? (process.env.VERCEL ? '/tmp/bodha.db' : './data/bodha.db'),
+  /** MongoDB connection string (e.g. mongodb+srv://... or mongodb://localhost:27017/bodha_ai). */
+  mongodbUri: process.env.MONGODB_URI ?? '',
+  useMongo: Boolean(process.env.MONGODB_URI),
   /** Empty in the demo - the rule-based listing optimizer is used instead. */
   llmApiKey: process.env.LLM_API_KEY ?? '',
   llmModel: process.env.LLM_MODEL ?? 'claude-sonnet-5',
   /** Gemini powers language-aware listing copy when set. */
   geminiApiKey: process.env.GEMINI_API_KEY || process.env.LLM_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.0-flash',
+  /**
+   * OAuth 2.0 Client ID from Google Cloud Console ("Sign in with Google").
+   * Public by design — it's also embedded in the frontend bundle as
+   * VITE_GOOGLE_CLIENT_ID. Verifies the `aud` claim on every Google ID token;
+   * leave empty to disable Google sign-in (POST /api/auth/google then 400s).
+   */
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
   /** Used only server-side to mint ElevenLabs conversation tokens / signed URLs. */
   elevenLabsApiKey: process.env.ELEVENLABS_API_KEY ?? '',
   elevenLabsAgentId: process.env.ELEVENLABS_AGENT_ID ?? 'agent_3301m2486d2qecasbeht51m4ef4t',

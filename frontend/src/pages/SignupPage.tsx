@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
+import { GoogleSignInButton, isGoogleSignInEnabled } from '../components/auth/GoogleSignInButton';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError, api } from '../services/api';
+import type { AuthUser } from '../types';
 
 export function SignupPage() {
   const { t } = useTranslation();
@@ -30,6 +32,12 @@ export function SignupPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleGoogleSuccess(user: AuthUser) {
+    setError(null);
+    setUser(user);
+    navigate(user.onboarded ? '/analyze' : '/onboarding', { replace: true });
   }
 
   return (
@@ -85,6 +93,22 @@ export function SignupPage() {
           {t('auth.signupSubmit')}
         </Button>
       </form>
+
+      {isGoogleSignInEnabled && (
+        <>
+          <div className="mt-6 flex items-center gap-3 text-xs uppercase tracking-[0.12em] text-ink-muted">
+            <span className="h-px flex-1 bg-rule" aria-hidden="true" />
+            {t('auth.orDivider')}
+            <span className="h-px flex-1 bg-rule" aria-hidden="true" />
+          </div>
+          <div className="mt-6">
+            <GoogleSignInButton
+              onSuccess={handleGoogleSuccess}
+              onError={(message) => setError(message)}
+            />
+          </div>
+        </>
+      )}
 
       <p className="mt-6 text-sm text-ink-muted">
         {t('auth.hasAccount')}{' '}

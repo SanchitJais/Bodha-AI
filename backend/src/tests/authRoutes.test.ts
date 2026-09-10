@@ -7,12 +7,50 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 
+// Keeps the one test below that calls /api/products/analyze fast and
+// deterministic — same mocks as api.test.ts, needed here only to attach a
+// product to a seller so we can prove Google sign-in finds their history.
+vi.mock('../services/regionalDemandService.js', () => ({
+  fetchRegionalDemand: async () => ({ available: false, states: [] }),
+}));
+
+vi.mock('../services/reviewSentiment.js', () => ({
+  collectReviewSnippets: async () => [],
+  analyzeReviewSentiment: async () => ({ available: false, topPraises: [], topComplaints: [] }),
+}));
+
+vi.mock('../services/scraper/scraperService.js', () => ({
+  hasLiveScraper: () => false,
+  scrapeComparableListings: async () => [],
+}));
+
+vi.mock('../services/marketplaceDataProvider.js', () => {
+  const snapshot = {
+    comparablePrices: [899, 949, 999, 1099, 1199],
+    demandIndex: 80,
+    competitionIndex: 70,
+    dataFreshness: 'live' as const,
+    lastUpdated: '2026-01-01T00:00:00.000Z',
+    listingCount: 5,
+    unavailable: false,
+  };
+  return {
+    getMarketSnapshots: async () => ({ amazon: snapshot }),
+    getMarketData: async () => ({ snapshots: { amazon: snapshot }, listings: { amazon: [] } }),
+    getCachedListings: () => [],
+  };
+});
+
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bodha-auth-test-'));
 process.env.DATABASE_PATH = path.join(tempDir, 'test.db');
+// Fixture value, set before `config/env.js` loads, so these tests don't
+// depend on whatever GOOGLE_CLIENT_ID (if any) happens to be in a
+// developer's local `.env` — `.env` is gitignored and absent in CI.
+process.env.GOOGLE_CLIENT_ID = 'fixture-client-id.apps.googleusercontent.com';
 
 let app: Express;
 let closeDatabase: () => void;
@@ -30,6 +68,21 @@ afterAll(() => {
   closeDatabase?.();
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+/** Stubs the tokeninfo call Google's own SDK would otherwise trigger. */
+function mockGoogleTokenInfo(claims: Record<string, string>): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => claims,
+    })),
+  );
+}
 
 const credentials = {
   email: 'signup-test@example.com',
@@ -162,5 +215,106 @@ describe('POST /api/auth/onboarding', () => {
       .post('/api/auth/onboarding')
       .send({ storeName: 'Test Store', storeCity: 'Mumbai', storeCategory: 'not-a-category' })
       .expect(400);
+  });
+});
+
+describe('POST /api/auth/google', () => {
+  it('rejects a request with no credential', async () => {
+    const response = await request(app).post('/api/auth/google').send({}).expect(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it("rejects a token whose audience doesn't match this app's client id", async () => {
+    mockGoogleTokenInfo({
+      aud: 'someone-elses-client-id.apps.googleusercontent.com',
+      email: 'google-user@example.com',
+      email_verified: 'true',
+      name: 'Google User',
+      sub: 'google-sub-1',
+    });
+
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: 'fake-jwt' })
+      .expect(401);
+    expect(response.body.error.message).toMatch(/not issued for this app/i);
+  });
+
+  it('rejects a token with an unverified email', async () => {
+    mockGoogleTokenInfo({
+      aud: 'fixture-client-id.apps.googleusercontent.com',
+      email: 'unverified@example.com',
+      email_verified: 'false',
+      name: 'Unverified',
+      sub: 'google-sub-2',
+    });
+
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: 'fake-jwt' })
+      .expect(401);
+    expect(response.body.error.message).toMatch(/verified/i);
+  });
+
+  it('creates a new account on first Google sign-in', async () => {
+    mockGoogleTokenInfo({
+      aud: 'fixture-client-id.apps.googleusercontent.com',
+      email: 'new-google-seller@example.com',
+      email_verified: 'true',
+      name: 'New Google Seller',
+      sub: 'google-sub-3',
+    });
+
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: 'fake-jwt' })
+      .expect(200);
+
+    expect(response.body.user).toMatchObject({
+      email: 'new-google-seller@example.com',
+      displayName: 'New Google Seller',
+      plan: 'free',
+      onboarded: false,
+    });
+    expect(response.headers['set-cookie']?.[0]).toMatch(/bodha_session=/);
+  });
+
+  it('signs the seller into their existing account, and their history is still there', async () => {
+    const passwordAgent = request.agent(app);
+    const email = 'linked-seller@example.com';
+    await passwordAgent
+      .post('/api/auth/signup')
+      .send({ email, password: 'password12', name: 'Linked Seller' })
+      .expect(201);
+
+    const analyze = await passwordAgent.post('/api/products/analyze').send({
+      title: 'USB C Fast Charging Cable',
+      description: 'Nylon braided 1.5m cable supporting 65W fast charge and data sync.',
+      category: 'electronics-accessories',
+      imageUrl: null,
+      manufacturingCost: 400,
+      currentPrice: 800,
+      platforms: ['amazon'],
+    });
+    expect(analyze.status).toBe(201);
+
+    mockGoogleTokenInfo({
+      aud: 'fixture-client-id.apps.googleusercontent.com',
+      email,
+      email_verified: 'true',
+      name: 'Linked Seller',
+      sub: 'google-sub-4',
+    });
+
+    const googleAgent = request.agent(app);
+    const googleLogin = await googleAgent
+      .post('/api/auth/google')
+      .send({ credential: 'fake-jwt' })
+      .expect(200);
+    expect(googleLogin.body.user.email).toBe(email);
+
+    const history = await googleAgent.get('/api/products/history').expect(200);
+    expect(history.body).toHaveLength(1);
+    expect(history.body[0].productId).toBe(analyze.body.productId);
   });
 });

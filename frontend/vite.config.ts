@@ -11,11 +11,20 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       '@native': path.join(rootDir, 'native'),
+      // `../native` sits outside this project, so its bare `@capacitor/*`
+      // imports would otherwise resolve Node-style from ITS OWN folder
+      // upward — reaching only a repo-root `node_modules`, which an isolated
+      // single-service deploy (e.g. Vercel building this "frontend" service
+      // alone) never installs. Pin them to this project's own node_modules
+      // instead, where they're guaranteed to exist once `npm install` runs
+      // here. (The previous `resolve.modules` entry that attempted this was
+      // not a real Vite option and silently did nothing.)
+      '@capacitor': path.join(rootDir, 'frontend/node_modules/@capacitor'),
+      '@capacitor-community': path.join(rootDir, 'frontend/node_modules/@capacitor-community'),
       ...(mode === 'android'
         ? { '@elevenlabs/react': path.join(rootDir, 'frontend/src/shims/elevenlabsStub.ts') }
         : {}),
     },
-    modules: [path.join(rootDir, 'frontend/node_modules'), path.join(rootDir, 'node_modules')],
   },
   build: {
     rollupOptions: {

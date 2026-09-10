@@ -168,6 +168,15 @@ export const api = {
     return result;
   },
 
+  async loginWithGoogle(credential: string): Promise<{ user: AuthUser }> {
+    const result = await request<{ user: AuthUser; token?: string }>('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    });
+    if (result.token) await saveNativeSessionToken(result.token);
+    return result;
+  },
+
   async logout(): Promise<void> {
     await request('/api/auth/logout', { method: 'POST' });
     await clearNativeSessionToken();

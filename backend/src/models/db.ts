@@ -113,6 +113,8 @@ export function getDatabase(): DatabaseSync {
   ensureColumn(database, 'users', 'storeCity', 'TEXT');
   ensureColumn(database, 'users', 'storeCategory', 'TEXT');
   ensureColumn(database, 'users', 'onboardedAt', 'TEXT');
+  ensureColumn(database, 'users', 'authProvider', "TEXT NOT NULL DEFAULT 'password'");
+  ensureColumn(database, 'users', 'googleId', 'TEXT');
 
   database
     .prepare('INSERT OR IGNORE INTO sellers (id, displayName, createdAt) VALUES (?, ?, ?)')

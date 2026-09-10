@@ -3,9 +3,13 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { closeDatabase, getDatabase } from './models/db.js';
+import { closeMongo, connectMongo } from './models/mongo.js';
 import { closeBrowser } from './services/scraper/browserPool.js';
 
 getDatabase();
+if (env.mongodbUri) {
+  void connectMongo();
+}
 
 const app = createApp();
 
@@ -27,6 +31,7 @@ if (!process.env.VERCEL) {
     console.log('[bodha-ai] ' + signal + ' received, shutting down');
     server.close(() => {
       closeDatabase();
+      void closeMongo();
       void closeBrowser().finally(() => process.exit(0));
     });
   };

@@ -4,12 +4,14 @@ import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 
+import { env } from '../config/env.js';
 import { clearSessionCookie, requireUser, sessionCookie } from '../middleware/auth.js';
 import {
   createSession,
   createUser,
   creditStatus,
   deleteSession,
+  findOrCreateGoogleUser,
   findUserByEmail,
   saveStoreProfile,
   verifyPassword,
@@ -81,6 +83,66 @@ authRoutes.post('/login', (req: Request, res: Response, next: NextFunction): voi
     next(error);
   }
 });
+
+interface GoogleTokenInfo {
+  aud?: string;
+  email?: string;
+  email_verified?: string;
+  name?: string;
+  sub?: string;
+}
+
+/**
+ * "Sign in with Google" via Google Identity Services: the frontend obtains an
+ * ID token (a signed JWT) from Google's own button and posts it here as-is.
+ * Verification is delegated to Google's tokeninfo endpoint rather than a
+ * local JWKS/JWT library, matching how this backend already verifies
+ * third-party tokens elsewhere (ElevenLabs, Razorpay) with plain `fetch`
+ * instead of an SDK. The account is matched by email, so a seller who
+ * originally signed up with a password sees the same history when they
+ * later use "Sign in with Google" on that address.
+ */
+authRoutes.post(
+  '/google',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const credential = typeof req.body?.credential === 'string' ? req.body.credential.trim() : '';
+      if (!credential) {
+        throw HttpError.badRequest('Missing Google sign-in credential');
+      }
+      if (!env.googleClientId) {
+        throw HttpError.badRequest('Google sign-in is not configured for this deployment');
+      }
+
+      const verifyResponse = await fetch(
+        'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential),
+      );
+      if (!verifyResponse.ok) {
+        throw HttpError.unauthorized('Could not verify the Google sign-in token');
+      }
+      const claims = (await verifyResponse.json()) as GoogleTokenInfo;
+
+      if (claims.aud !== env.googleClientId) {
+        throw HttpError.unauthorized('This Google sign-in token was not issued for this app');
+      }
+      if (!claims.email || claims.email_verified !== 'true') {
+        throw HttpError.unauthorized('Your Google account email must be verified to sign in');
+      }
+
+      const user = findOrCreateGoogleUser({
+        email: claims.email,
+        name: claims.name?.trim() || claims.email.split('@')[0],
+        googleId: claims.sub ?? '',
+      });
+      const token = createSession(user.id);
+      req.user = user;
+      res.setHeader('Set-Cookie', sessionCookie(token));
+      res.json({ user: publicUser(req), token });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 authRoutes.post('/logout', (req: Request, res: Response): void => {
   const token = readSessionToken(req);

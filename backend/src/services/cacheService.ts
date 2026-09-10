@@ -12,6 +12,7 @@
 import { env } from '../config/env.js';
 import type { CategoryId, ComparableListing, PlatformId } from '../types/index.js';
 import { getDatabase } from '../models/db.js';
+import { isMongoConnected, ListingCacheModel } from '../models/mongo.js';
 
 export interface CachedListings {
   listings: ComparableListing[];
@@ -65,6 +66,10 @@ export function writeCache(
   listings: ComparableListing[],
   fetchedAt: string = new Date().toISOString(),
 ): void {
+  const key = cacheKey(platformId, category, query);
+  const normalized = normalizeQuery(query);
+  const listingsJson = JSON.stringify(listings);
+
   getDatabase()
     .prepare(
       `INSERT INTO listing_cache (cacheKey, platformId, category, query, listingsJson, fetchedAt)
@@ -74,18 +79,32 @@ export function writeCache(
          fetchedAt = excluded.fetchedAt,
          query = excluded.query`,
     )
-    .run(
-      cacheKey(platformId, category, query),
-      platformId,
-      category,
-      normalizeQuery(query),
-      JSON.stringify(listings),
-      fetchedAt,
-    );
+    .run(key, platformId, category, normalized, listingsJson, fetchedAt);
+
+  if (isMongoConnected()) {
+    ListingCacheModel.updateOne(
+      { _id: key },
+      {
+        $set: {
+          platformId,
+          category,
+          query: normalized,
+          listingsJson,
+          fetchedAt,
+        },
+      },
+      { upsert: true },
+    ).catch((err) => console.error('[bodha-ai] Mongo sync listing cache error:', err));
+  }
 }
 
 export function clearCache(): number {
   const result = getDatabase().prepare('DELETE FROM listing_cache').run();
+  if (isMongoConnected()) {
+    ListingCacheModel.deleteMany({}).catch((err) =>
+      console.error('[bodha-ai] Mongo clear listing cache error:', err),
+    );
+  }
   return Number(result.changes ?? 0);
 }
 

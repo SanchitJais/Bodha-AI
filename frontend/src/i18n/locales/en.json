@@ -315,7 +315,8 @@
     "email": "Email",
     "password": "Password",
     "name": "Your name",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "orDivider": "or"
   },
   "onboarding": {
     "kicker": "Your store",

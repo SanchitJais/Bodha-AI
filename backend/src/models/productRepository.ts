@@ -4,6 +4,7 @@
  */
 
 import { DEMO_SELLER_ID, getDatabase } from './db.js';
+import { AnalysisModel, isMongoConnected, ProductModel } from './mongo.js';
 import { PLATFORMS } from '../data/platformConfig.js';
 import type {
   AnalysisRecord,
@@ -141,6 +142,40 @@ export function saveAnalysis(record: AnalysisRecord, sellerId: string = DEMO_SEL
     );
 
     db.exec('COMMIT');
+
+    if (isMongoConnected()) {
+      ProductModel.updateOne(
+        { _id: record.productId },
+        {
+          $set: {
+            sellerId,
+            title: record.title,
+            description: record.description,
+            category: record.category,
+            imageUrl: record.imageUrl,
+            manufacturingCost: record.manufacturingCost,
+            currentPrice: record.currentPrice,
+            createdAt: record.createdAt,
+          },
+        },
+        { upsert: true },
+      ).catch((err) => console.error('[bodha-ai] Mongo sync product error:', err));
+
+      AnalysisModel.updateOne(
+        { _id: record.productId },
+        {
+          $set: {
+            recommendedPlatform: record.recommendedPlatform,
+            recommendedPrice: record.recommendedPrice,
+            platformsJson: JSON.stringify(record.platforms),
+            listingJson: JSON.stringify(record.optimizedListing),
+            insightsJson: JSON.stringify(record.insights),
+            createdAt: record.createdAt,
+          },
+        },
+        { upsert: true },
+      ).catch((err) => console.error('[bodha-ai] Mongo sync analysis error:', err));
+    }
   } catch (error) {
     db.exec('ROLLBACK');
     throw error;
@@ -208,4 +243,11 @@ export function updateInsights(productId: string, insights: ReportInsights): voi
   getDatabase()
     .prepare('UPDATE analyses SET insightsJson = ? WHERE productId = ?')
     .run(JSON.stringify(insights), productId);
+
+  if (isMongoConnected()) {
+    AnalysisModel.updateOne(
+      { _id: productId },
+      { $set: { insightsJson: JSON.stringify(insights) } },
+    ).catch((err) => console.error('[bodha-ai] Mongo sync insights error:', err));
+  }
 }
