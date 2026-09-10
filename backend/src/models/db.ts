@@ -13,16 +13,15 @@ import path from 'node:path';
 import { env } from '../config/env.js';
 
 /**
- * `node:sqlite` is a prefix-only builtin, so bundlers that strip the `node:`
- * prefix before their builtin check (Vite, and therefore Vitest) try to resolve
- * a non-existent "sqlite" package and fail. Loading it through `createRequire`
- * keeps the specifier opaque to static analysis and hands it straight to Node,
- * which works identically under `tsx`, the compiled build, and the test runner.
+ * `node:sqlite` type alias, resolved lazily inside `getDatabase()` — not here
+ * at module load — so importing this module never crashes at cold start on a
+ * runtime where the built-in isn't available yet (e.g. Vercel serverless);
+ * only actually opening the database does. `createRequire` also keeps the
+ * specifier opaque to bundlers that strip the `node:` prefix before their
+ * builtin check (Vite, and therefore Vitest) and would otherwise try to
+ * resolve a non-existent "sqlite" package.
  */
-const require = createRequire(import.meta.url);
-const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
-
-type DatabaseSync = InstanceType<typeof DatabaseSync>;
+type DatabaseSync = InstanceType<(typeof import('node:sqlite'))['DatabaseSync']>;
 
 let database: DatabaseSync | null = null;
 
@@ -100,6 +99,9 @@ export const DEMO_SELLER_ID = 'demo-seller';
 /** Open (and on first call, create and migrate) the SQLite database. */
 export function getDatabase(): DatabaseSync {
   if (database) return database;
+
+  const require = createRequire(import.meta.url);
+  const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
 
   const dbPath = path.resolve(env.databasePath);
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
