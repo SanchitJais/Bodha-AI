@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { GoogleSignInButton, isGoogleSignInEnabled } from '../components/auth/GoogleSignInButton';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
+import { PasswordInput } from '../components/ui/PasswordInput';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError, api } from '../services/api';
 import type { AuthUser } from '../types';
@@ -65,13 +66,11 @@ export function LoginPage() {
         </FormField>
         <FormField id="password" label={t('auth.password')}>
           {({ id }) => (
-            <input
+            <PasswordInput
               id={id}
-              type="password"
               autoComplete="current-password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="field"
+              onChange={setPassword}
               required
             />
           )}
