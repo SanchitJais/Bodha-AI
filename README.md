@@ -5,7 +5,7 @@
 > Team **Code4Bharat** — Sanchit Jaiswal · Krishna Keshab · Chiraag Mutupuri · Sagnik Mitra · Sanjay Gupta
 
 ---
-
+ 
 ## 1. Problem statement
 
 A small Indian seller with a product to list faces three decisions at once, and gets
